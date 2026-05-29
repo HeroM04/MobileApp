@@ -56,6 +56,26 @@ class AuthController extends GetxController {
     }
   }
 
+  // HÀM KIỂM TRA TRẠNG THÁI SERVER (ĐÁNH THỨC RENDER)
+  Future<bool> checkServerStatus() async {
+    try {
+      final response = await ApiClient.dio.get(
+        '/health', // Endpoint nhẹ nhất hoặc một endpoint public nào đó trên server
+        options: dio_pkg.Options(
+          sendTimeout: const Duration(seconds: 5),
+          receiveTimeout: const Duration(seconds: 5),
+        ),
+      );
+      // Nếu server phản hồi bất kỳ mã nào (kể cả 404, 401) đều chứng tỏ server đã SỐNG
+      return response.statusCode != null;
+    } catch (e) {
+      if (e is dio_pkg.DioException && e.response != null) {
+        return true; // Server sống nhưng trả mã lỗi 4xx, 5xx
+      }
+      return false; // SocketTimeout, ConnectionRefused -> Server đang ngủ
+    }
+  }
+
   // 2. Hàm đăng nhập (Login)
   Future<void> login(String phone, String password) async {
     if (phone.isEmpty || password.isEmpty) {
@@ -100,9 +120,9 @@ class AuthController extends GetxController {
           'role': role,
           'departmentId': 1, // Mặc định cho mock
           'departmentName': deptName,
-          'officeLat': 21.028511,
-          'officeLng': 105.804817,
-          'allowedRadius': 100,
+          'officeLat': 20.999042,
+          'officeLng': 105.806702,
+          'allowedRadius': 2000,
         };
 
 
@@ -129,10 +149,30 @@ class AuthController extends GetxController {
         Get.offAll(() => ShellView());
       } else {
         // --- CHẾ ĐỘ THỰC TẾ (CONNECT BACKEND) ---
-        final response = await ApiClient.dio.post('/auth/login', data: {
-          'phoneNumber': phone,
-          'password': password,
-        });
+        // 1. Kiểm tra trạng thái server trước (Ping 5s)
+        bool isServerUp = await checkServerStatus();
+        if (!isServerUp) {
+          isLoading.value = false;
+          Get.snackbar(
+            "Hệ thống đang khởi động", 
+            "Server đang được đánh thức. Vui lòng đợi khoảng 1 phút rồi bấm Đăng nhập lại nhé!",
+            duration: const Duration(seconds: 5),
+          );
+          return;
+        }
+
+        // 2. Nếu server sống, gọi API đăng nhập với Timeout 60s
+        final response = await ApiClient.dio.post(
+          '/auth/login', 
+          data: {
+            'phoneNumber': phone,
+            'password': password,
+          },
+          options: dio_pkg.Options(
+            sendTimeout: const Duration(seconds: 60),
+            receiveTimeout: const Duration(seconds: 60),
+          )
+        );
 
         if (response.statusCode == 200 && response.data['status'] == 'SUCCESS') {
           final data = response.data['data'];
@@ -219,24 +259,14 @@ class AuthController extends GetxController {
       await _secureStorage.delete(key: 'refreshToken');
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('userId');
-      await prefs.remove('fullName');
-      await prefs.remove('phoneNumber');
-      await prefs.remove('role');
-      await prefs.remove('departmentId');
-      await prefs.remove('departmentName');
-      await prefs.remove('officeLat');
-      await prefs.remove('officeLng');
-      await prefs.remove('allowedRadius');
+      await prefs.clear(); // XÓA SẠCH toàn bộ cache thay vì xóa từng key
 
       currentUser.clear();
       isLoggedIn.value = false;
 
-      // Xóa sạch KPI data cũ để không hiển thị cho người dùng tiếp theo
-      if (Get.isRegistered<KpiController>()) {
-        Get.find<KpiController>().reset();
-        Get.delete<KpiController>();
-      }
+      // Reset toàn bộ state trong bộ nhớ RAM để tránh dính dữ liệu (như báo cáo Thực chiến) sang Acc mới
+      Get.deleteAll(force: true);
+      Get.put(AuthController(), permanent: true); // Khởi tạo lại AuthController vì vừa bị xóa
 
       Get.snackbar("Thông báo", "Đã đăng xuất tài khoản!");
       Get.offAll(() => LoginView());

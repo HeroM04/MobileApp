@@ -34,14 +34,19 @@ class _HistoryDateListViewState extends State<HistoryDateListView> {
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
   Future<void> _fetchForDate(DateTime date) async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final result = await widget.onFetchHistory(_formatDateParam(date));
+      if (!mounted) return;
       setState(() => _items = result);
     } catch (e) {
+      if (!mounted) return;
       setState(() => _items = []);
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Ứng dụng cần sử dụng Camera để chụp ảnh check-in thực địa</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Ứng dụng cần lấy vị trí của bạn để chấm công chính xác</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Ứng dụng cần lấy vị trí của bạn để chấm công chính xác</string>
 </dict>
 </plist>

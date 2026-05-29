@@ -43,6 +43,11 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   qr_flutter: ^4.1.0          # Render mã QR thực tế cho phòng đào tạo
+  geocoding: ^4.0.0
+  google_mlkit_face_detection: ^0.13.2
+  image: ^4.8.0
+  intl: ^0.20.2
+  mobile_scanner: ^7.2.0
 
 dev_dependencies:
   flutter_test:

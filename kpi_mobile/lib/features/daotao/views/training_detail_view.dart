@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../controllers/training_controller.dart';
 import '../../auth/controllers/auth_controller.dart';
 import 'qr_token_display.dart';
+import 'qr_scanner_view.dart';
 
 class TrainingDetailView extends StatefulWidget {
   final TrainingRoom room;
@@ -191,7 +192,7 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
     }
   }
 
-  void _simulateScan() async {
+  void _startRealScan() async {
     final user = authController.currentUser;
     final fullName = user['fullName'] ?? 'Nhân viên';
     final role = user['role'] ?? 'SALE';
@@ -208,45 +209,60 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
       return;
     }
 
-    setState(() {
-      _isScanning = true;
-    });
+    // Mở màn hình quét QR thực tế và đợi kết quả trả về
+    final scannedCode = await Get.to(() => const QrScannerView());
 
-    // Giả lập quét camera mất 1.5 giây
-    await Future.delayed(const Duration(milliseconds: 1500));
+    if (scannedCode != null && scannedCode.toString().isNotEmpty) {
+      // Kiểm tra mã quét được có khớp với mã phòng không
+      if (scannedCode.toString() != widget.room.roomCode) {
+        Get.snackbar(
+          "Lỗi mã QR",
+          "Mã QR bạn quét không thuộc về lớp học này. Vui lòng quét đúng mã hiển thị trên màn hình giảng viên!",
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 4),
+        );
+        return;
+      }
 
-    setState(() {
-      _isScanning = false;
-    });
+      setState(() {
+        _isScanning = true;
+      });
 
-    final success = await controller.attendRoomByCode(widget.room.roomCode);
-    if (success) {
-      // Cập nhật lại UI lập tức
-      await controller.reloadRoomDetails(widget.room.id);
-      try {
-        final updatedRoom = controller.rooms.firstWhere((r) => r.id == widget.room.id);
-        widget.room.participants.assignAll(updatedRoom.participants);
-      } catch (_) {}
+      // Bắn API điểm danh với mã hợp lệ
+      final success = await controller.attendRoomByCode(scannedCode.toString());
+      if (success) {
+        // Cập nhật lại UI lập tức
+        await controller.reloadRoomDetails(widget.room.id);
+        try {
+          final updatedRoom = controller.rooms.firstWhere((r) => r.id == widget.room.id);
+          widget.room.participants.assignAll(updatedRoom.participants);
+        } catch (_) {}
 
-      final hasKpi = role == 'SALE' || role == 'TRUONG_PHONG';
-      Get.defaultDialog(
-        title: "Điểm danh thành công",
-        middleText: hasKpi
-            ? "Mã QR hợp lệ: ${widget.room.roomCode}\nĐã ghi nhận bạn tham gia lớp học. Nhận +5 điểm KPI tác phong!"
-            : "Mã QR hợp lệ: ${widget.room.roomCode}\nĐã ghi nhận bạn tham gia lớp học thành công.",
-        textConfirm: "Xác nhận",
-        confirmTextColor: Colors.white,
-        buttonColor: const Color(0xFF0F2C59),
-        onConfirm: () => Get.back(),
-      );
-    } else {
-      Get.snackbar(
-        "Thất bại", 
-        "Điểm danh không thành công. Hãy chắc chắn bạn chưa điểm danh và lớp chưa đầy.", 
-        backgroundColor: Colors.red, 
-        colorText: Colors.white,
-        duration: const Duration(seconds: 4)
-      );
+        final hasKpi = role == 'SALE' || role == 'TRUONG_PHONG';
+        Get.defaultDialog(
+          title: "Điểm danh thành công",
+          middleText: hasKpi
+              ? "Mã QR hợp lệ: ${widget.room.roomCode}\nĐã ghi nhận bạn tham gia lớp học. Nhận +5 điểm KPI tác phong!"
+              : "Mã QR hợp lệ: ${widget.room.roomCode}\nĐã ghi nhận bạn tham gia lớp học thành công.",
+          textConfirm: "Xác nhận",
+          confirmTextColor: Colors.white,
+          buttonColor: const Color(0xFF0F2C59),
+          onConfirm: () => Get.back(),
+        );
+      } else {
+        Get.snackbar(
+          "Thất bại", 
+          "Điểm danh không thành công. Hãy chắc chắn bạn chưa điểm danh và lớp chưa đầy.", 
+          backgroundColor: Colors.red, 
+          colorText: Colors.white,
+          duration: const Duration(seconds: 4)
+        );
+      }
+
+      setState(() {
+        _isScanning = false;
+      });
     }
   }
 
@@ -448,7 +464,7 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
                   child: _isScanning
                       ? const Center(child: CircularProgressIndicator(color: Color(0xFF0F2C59)))
                       : ElevatedButton.icon(
-                          onPressed: _simulateScan,
+                          onPressed: _startRealScan,
                           icon: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 18),
                           label: const Text(
                             "QUÉT ĐIỂM DANH DỰ LỚP",

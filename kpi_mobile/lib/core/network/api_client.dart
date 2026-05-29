@@ -16,8 +16,8 @@ class ApiClient {
 
   static final Dio dio = Dio(BaseOptions(
     baseUrl: baseUrl,
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 10),
+    connectTimeout: const Duration(seconds: 60), // Render Free Tier cold start
+    receiveTimeout: const Duration(seconds: 60),
   ))..interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) async {

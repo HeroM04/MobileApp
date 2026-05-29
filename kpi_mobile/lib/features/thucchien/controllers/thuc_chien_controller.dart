@@ -61,15 +61,18 @@ class ThucChienController extends GetxController {
     }
     try {
       final dio = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 2),
-        receiveTimeout: const Duration(seconds: 2),
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 5),
       ));
-      // Gọi thử một endpoint cơ bản của backend
-      final response = await dio.get('${ApiClient.baseUrl}/auth/check-status').timeout(const Duration(seconds: 2));
-      return response.statusCode == 200;
-    } catch (_) {
-      // Bất kỳ lỗi mạng nào (SocketException, Timeout, v.v.)
-      return false;
+      // Gọi thử 1 endpoint cơ bản (ping server)
+      final response = await dio.get('${ApiClient.baseUrl}/health').timeout(const Duration(seconds: 5));
+      // Nếu server có phản hồi (bất kỳ mã gì, kể cả 404, 401, 500) -> Điện thoại đang CÓ MẠNG (ONLINE)
+      return response.statusCode != null;
+    } catch (e) {
+      if (e is DioException && e.response != null) {
+        return true; // Vẫn là có mạng nếu server trả về mã lỗi
+      }
+      return false; // Lỗi Socket, Connection Refused -> OFFLINE
     }
   }
 
