@@ -1,7 +1,9 @@
-class ApiConstants {
-  // Đã cập nhật domain Render theo yêu cầu
-  static const String baseUrl = 'https://kpi-backend-4xex.onrender.com/api/v1';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-  // Tương tự, cập nhật WebSocket sang wss (Secure)
-  static const String wsUrl = 'wss://kpi-backend-4xex.onrender.com/ws';
+class ApiConstants {
+  // Lấy Base URL từ file .env, fallback nếu không tìm thấy
+  static String get baseUrl => dotenv.env['API_BASE_URL'] ?? 'http://192.168.88.98:8080/api/v1';
+
+  // Lấy WS URL từ file .env
+  static String get wsUrl => dotenv.env['WS_URL'] ?? 'ws://192.168.88.98:8080/ws';
 }

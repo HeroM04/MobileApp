@@ -30,10 +30,10 @@ class _QrScannerViewState extends State<QrScannerView> {
         actions: [
           IconButton(
             color: const Color(0xFF0F2C59),
-            icon: ValueListenableBuilder(
-              valueListenable: cameraController.torchState,
+            icon: ValueListenableBuilder<MobileScannerState>(
+              valueListenable: cameraController,
               builder: (context, state, child) {
-                switch (state) {
+                switch (state.torchState) {
                   case TorchState.off:
                     return const Icon(Icons.flash_off);
                   case TorchState.on:
@@ -47,10 +47,10 @@ class _QrScannerViewState extends State<QrScannerView> {
           ),
           IconButton(
             color: const Color(0xFF0F2C59),
-            icon: ValueListenableBuilder(
-              valueListenable: cameraController.cameraFacingState,
+            icon: ValueListenableBuilder<MobileScannerState>(
+              valueListenable: cameraController,
               builder: (context, state, child) {
-                switch (state) {
+                switch (state.cameraDirection) {
                   case CameraFacing.front:
                     return const Icon(Icons.camera_front);
                   case CameraFacing.back:

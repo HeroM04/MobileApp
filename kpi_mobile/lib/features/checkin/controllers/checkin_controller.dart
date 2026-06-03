@@ -223,6 +223,40 @@ class CheckinController extends GetxController {
     return distance;
   }
 
+  /// Xử lý lấy toạ độ và Check-out không cần chụp ảnh
+  Future<void> handleCheckOut(String note) async {
+    try {
+      isLoading.value = true;
+      Position? position = await _getCurrentLocation();
+      if (position == null) { isLoading.value = false; return; }
+      
+      currentLat = position.latitude;
+      currentLng = position.longitude;
+      
+      if (position.isMocked) {
+        isLoading.value = false;
+        Get.snackbar("Cảnh báo", "Phát hiện Fake GPS.", backgroundColor: Colors.redAccent, colorText: Colors.white);
+        return;
+      }
+
+      currentAddress = await _getAddressFromCoordinates(currentLat, currentLng);
+      double distance = _calculateDistanceToOffice(currentLat, currentLng);
+      
+      Get.snackbar("GPS", "Cách công ty: ${distance.toStringAsFixed(0)}m");
+
+      if (distance > 2000) {
+        isOutOfRange.value = true;
+        isLoading.value = false;
+      } else {
+        isOutOfRange.value = false;
+        await performCheckin(note);
+      }
+    } catch (e) {
+      Get.snackbar("Lỗi", "Lỗi GPS: $e", backgroundColor: Colors.redAccent, colorText: Colors.white);
+      isLoading.value = false;
+    }
+  }
+
   /// Gửi dữ liệu lên API
   Future<void> performCheckin(String note) async {
     if (selectedImage.value == null) {
@@ -232,13 +266,15 @@ class CheckinController extends GetxController {
 
     try {
       isLoading.value = true;
+      String? realImageUrl = "";
 
-      // Upload Cloudinary
-      final uploadService = UploadService();
-      String? realImageUrl = await uploadService.uploadFile(selectedImage.value!);
-      if (realImageUrl == null) throw "Không thể upload ảnh lên máy chủ";
+      // Nếu có ảnh (Check-in), thì upload
+      if (selectedImage.value != null) {
+        final uploadService = UploadService();
+        realImageUrl = await uploadService.uploadFile(selectedImage.value!);
+        if (realImageUrl == null) throw "Không thể upload ảnh lên máy chủ";
+      }
 
-      // Gọi API Check-in. Backend sẽ tự động quyết định là APPROVED hay PENDING.
       final response = await _service.submitCheckin({
         "latitude": currentLat,
         "longitude": currentLng,
@@ -248,7 +284,6 @@ class CheckinController extends GetxController {
         "actionType": selectedActionType.value,
       });
 
-      // Reset state
       isOutOfRange.value = false;
       selectedImage.value = null; 
       
@@ -265,7 +300,7 @@ class CheckinController extends GetxController {
       Get.snackbar("Thành công", successMsg, backgroundColor: Colors.green, colorText: Colors.white);
       
     } catch (e) {
-      String errorMessage = "Không thể check-in: $e";
+      String errorMessage = "Không thể thực hiện: $e";
       if (e is DioException && e.response != null && e.response?.data != null) {
         final resData = e.response?.data;
         if (resData is Map && resData['message'] != null) {
@@ -278,7 +313,6 @@ class CheckinController extends GetxController {
     }
   }
 
-  // Loại bỏ hàm submitApprovalRequest riêng lẻ vì Backend chỉ cần 1 endpoint submitCheckin
   Future<void> submitApprovalRequest(String reason) async {
     await performCheckin(reason);
   }

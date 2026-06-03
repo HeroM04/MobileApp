@@ -264,12 +264,9 @@ class AuthController extends GetxController {
       currentUser.clear();
       isLoggedIn.value = false;
 
-      // Reset toàn bộ state trong bộ nhớ RAM để tránh dính dữ liệu (như báo cáo Thực chiến) sang Acc mới
-      Get.deleteAll(force: true);
-      Get.put(AuthController(), permanent: true); // Khởi tạo lại AuthController vì vừa bị xóa
-
-      Get.snackbar("Thông báo", "Đã đăng xuất tài khoản!");
       Get.offAll(() => LoginView());
+      // Hiển thị thông báo sau khi đã chuyển trang để tránh lỗi rebuild widget cũ
+      Get.snackbar("Thông báo", "Đã đăng xuất tài khoản!");
     }
   }
   // 4. Hàm đổi mật khẩu (Change Password)

@@ -435,7 +435,9 @@ class CheckinView extends StatelessWidget {
 
             // Trong phạm vi -> Nút chấm công theo loại đã chọn
             return Obx(() => ElevatedButton.icon(
-              onPressed: () => controller.performCheckin(noteController.text),
+              onPressed: () {
+                controller.performCheckin(noteController.text);
+              },
               icon: Icon(
                 controller.selectedActionType.value == 'CHECK_OUT'
                     ? Icons.logout_rounded

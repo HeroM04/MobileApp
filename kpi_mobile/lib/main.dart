@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // Thêm để dùng kReleaseMode
 import 'package:get/get.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Thêm dotenv
 import 'features/auth/controllers/auth_controller.dart';
 import 'features/auth/views/login_view.dart';
 import 'features/shell/views/shell_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load biến môi trường tùy theo chế độ chạy (Release = Prod, Debug = Dev)
+  const envFile = kReleaseMode ? '.env.production' : '.env.development';
+  await dotenv.load(fileName: envFile);
 
   // Khởi tạo AuthController là permanent để tồn tại suốt vòng đời app
   final authController = Get.put(AuthController(), permanent: true);

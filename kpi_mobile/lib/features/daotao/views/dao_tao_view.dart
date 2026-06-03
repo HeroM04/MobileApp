@@ -4,6 +4,7 @@ import '../controllers/training_controller.dart';
 import '../../auth/controllers/auth_controller.dart';
 import 'training_detail_view.dart';
 import 'qr_token_display.dart';
+import 'dao_tao_1_on_1_view.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
 
 class DaoTaoView extends StatefulWidget {
@@ -366,7 +367,24 @@ class _DaoTaoViewState extends State<DaoTaoView> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => Get.to(() => DaoTao1On1View()),
+                      icon: const Icon(Icons.people_alt, size: 16, color: Colors.white),
+                      label: const Text(
+                        "BÁO CÁO ĐÀO TẠO 1-1 (+5 KPI)",
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE11D48), // Red/Pink accent color
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   const Text(
                     "Hãy lựa chọn phòng đào tạo đang diễn ra bên dưới để xem thông tin chi tiết, quét mã QR điểm danh chuyên cần (+5 điểm KPI tác phong).",
                     style: TextStyle(

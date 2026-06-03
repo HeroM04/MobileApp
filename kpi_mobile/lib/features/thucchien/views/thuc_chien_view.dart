@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../home/controllers/kpi_controller.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../controllers/thuc_chien_controller.dart';
@@ -21,20 +23,12 @@ class _ThucChienViewState extends State<ThucChienView> {
   final ImagePicker _picker = ImagePicker();
   
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _customerNameController = TextEditingController();
-  final TextEditingController _customerPhoneController = TextEditingController();
-  final TextEditingController _projectController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
   
   File? _selectedImage;
-  bool _isScanningFaces = false;
-  int _detectedFaces = 0;
 
   @override
   void dispose() {
-    _customerNameController.dispose();
-    _customerPhoneController.dispose();
-    _projectController.dispose();
     _contentController.dispose();
     super.dispose();
   }
@@ -89,33 +83,147 @@ class _ThucChienViewState extends State<ThucChienView> {
 
   Future<void> _executePick(ImageSource source) async {
     try {
-      final XFile? image = await _picker.pickImage(source: source, imageQuality: 50);
+      final XFile? image = await _picker.pickImage(source: source, imageQuality: 85);
       if (image != null) {
-        setState(() {
-          _selectedImage = File(image.path);
-          _isScanningFaces = true;
-        });
 
-        // Giả lập quét ảnh kiểm tra khuôn mặt (AI Face Count simulation)
-        await Future.delayed(const Duration(milliseconds: 1500));
-        
+        // Lấy GPS & địa chỉ TRƯỚC khi vẽ watermark
+        await controller.getCurrentLocationAndAddress();
+
+        // Vẽ watermark timestamp + địa chỉ lên ảnh
+        final watermarkedFile = await _addWatermark(File(image.path));
+
         setState(() {
-          _isScanningFaces = false;
-          // Ngẫu nhiên phát hiện 2 hoặc 3 khuôn mặt (gồm Sale + Khách) để thoả mãn điều kiện KPI thực chiến
-          _detectedFaces = 2; 
+          _selectedImage = watermarkedFile;
         });
 
         Get.snackbar(
-          "AI Scan",
-          "Đã nhận diện thành công $_detectedFaces khuôn mặt trong ảnh chụp thực tế!",
+          "Ảnh đã ghi nhận",
+          "Đã gắn thời gian & địa điểm vào ảnh.",
           backgroundColor: Colors.green,
           colorText: Colors.white,
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
       Get.snackbar("Lỗi", "Không thể chụp ảnh: $e");
     }
   }
+
+  /// Vẽ watermark mô phỏng Timemark
+  Future<File> _addWatermark(File originalFile) async {
+    try {
+      final bytes = await originalFile.readAsBytes();
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final originalImage = frame.image;
+
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+
+      // Tối ưu dung lượng: Giảm độ phân giải ảnh xuống tối đa 1200px chiều rộng
+      double scale = 1.0;
+      if (originalImage.width > 1200) {
+        scale = 1200 / originalImage.width;
+        canvas.scale(scale, scale);
+      }
+
+      canvas.drawImage(originalImage, Offset.zero, Paint());
+
+      final now = DateTime.now();
+      final hourStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+      final dateStr = '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
+      
+      final List<String> weekdays = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+      final weekdayStr = weekdays[now.weekday == 7 ? 0 : now.weekday];
+      
+      final address = controller.currentAddress.value.isNotEmpty ? controller.currentAddress.value : 'Đang xác định vị trí...';
+      
+      final user = authController.currentUser;
+      final name = user['fullName'] ?? 'Không rõ';
+      final dept = user['departmentName'] ?? 'Không rõ';
+
+      final double startX = 24.0;
+      // Anchor watermark near the bottom
+      double startY = originalImage.height - 450.0;
+      if (startY < 0) startY = 24.0;
+
+      // 1. LOGO TRÍ LONG LAND
+      final logoSpan = TextSpan(
+        text: 'TRÍ LONG LAND\n',
+        style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 32, fontWeight: FontWeight.bold, shadows: [Shadow(color: Colors.black, blurRadius: 6)]),
+        children: const [
+          TextSpan(text: 'KIẾN TẠO SỰ BỀN VỮNG', style: TextStyle(color: Colors.white, fontSize: 16, letterSpacing: 1.2)),
+        ],
+      );
+      final logoPainter = TextPainter(text: logoSpan, textDirection: TextDirection.ltr);
+      logoPainter.layout();
+      logoPainter.paint(canvas, Offset(startX, startY));
+      startY += logoPainter.height + 20;
+
+      // 2. TIME | DATE
+      final timeSpan = TextSpan(
+        children: [
+          TextSpan(text: '$hourStr ', style: const TextStyle(color: Colors.white, fontSize: 64, fontWeight: FontWeight.bold)),
+          TextSpan(text: '| ', style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 50, fontWeight: FontWeight.w300)),
+          TextSpan(text: '$dateStr\n', style: const TextStyle(color: Colors.white, fontSize: 24)),
+          TextSpan(text: '         $weekdayStr', style: const TextStyle(color: Colors.white, fontSize: 22)),
+        ],
+        style: const TextStyle(shadows: [Shadow(color: Colors.black, blurRadius: 6)], height: 1.1),
+      );
+      final timePainter = TextPainter(text: timeSpan, textDirection: TextDirection.ltr);
+      timePainter.layout();
+      timePainter.paint(canvas, Offset(startX, startY));
+      startY += timePainter.height + 20;
+
+      // 3. ADDRESS
+      final addressSpan = TextSpan(
+        text: address,
+        style: const TextStyle(color: Colors.white, fontSize: 22, shadows: [Shadow(color: Colors.black, blurRadius: 4)]),
+      );
+      final addressPainter = TextPainter(text: addressSpan, textDirection: TextDirection.ltr, maxLines: 3);
+      addressPainter.layout(maxWidth: originalImage.width - 48.0);
+      addressPainter.paint(canvas, Offset(startX, startY));
+      startY += addressPainter.height + 20;
+
+      // 4. GREY BOX (Company, Name, Room)
+      final boxPaint = Paint()..color = Colors.white.withOpacity(0.25);
+      final infoSpan = TextSpan(
+        text: 'Công ty: Trí Long Land\nHọ tên: $name\nPhòng: $dept',
+        style: const TextStyle(color: Colors.white, fontSize: 24, height: 1.6, shadows: [Shadow(color: Colors.black, blurRadius: 3)]),
+      );
+      final infoPainter = TextPainter(text: infoSpan, textDirection: TextDirection.ltr);
+      infoPainter.layout();
+      
+      final boxRect = RRect.fromLTRBR(startX, startY, startX + infoPainter.width + 40, startY + infoPainter.height + 24, const Radius.circular(12));
+      canvas.drawRRect(boxRect, boxPaint);
+      infoPainter.paint(canvas, Offset(startX + 20, startY + 12));
+
+      // 5. TIMEMARK (Bottom Right)
+      final tmSpan = TextSpan(
+        text: 'Timemark\n',
+        style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 24, fontWeight: FontWeight.bold, shadows: [Shadow(color: Colors.black, blurRadius: 4)]),
+        children: const [
+          TextSpan(text: '100% Chân thực', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.normal)),
+        ],
+      );
+      final tmPainter = TextPainter(text: tmSpan, textDirection: TextDirection.ltr, textAlign: TextAlign.right);
+      tmPainter.layout();
+      tmPainter.paint(canvas, Offset(originalImage.width - tmPainter.width - 30, originalImage.height - tmPainter.height - 30));
+
+      final picture = recorder.endRecording();
+      final img = await picture.toImage((originalImage.width * scale).toInt(), (originalImage.height * scale).toInt());
+      final pngBytes = await img.toByteData(format: ui.ImageByteFormat.png);
+
+      final dir = await getTemporaryDirectory();
+      final outFile = File('${dir.path}/wm_${DateTime.now().millisecondsSinceEpoch}.png');
+      await outFile.writeAsBytes(pngBytes!.buffer.asUint8List());
+      return outFile;
+    } catch (e) {
+      print('[ThucChien] Lỗi watermark: $e');
+      return originalFile;
+    }
+  }
+
 
   void _submitMeeting() {
     if (!_formKey.currentState!.validate()) return;
@@ -124,22 +232,21 @@ class _ThucChienViewState extends State<ThucChienView> {
       return;
     }
 
-    controller.submitMeeting(
-      name: _customerNameController.text,
-      phone: _customerPhoneController.text,
-      project: _projectController.text,
+    // Optimistic UI: gọi hàm mới — phản hồi ngay, API chạy ngầm
+    controller.submitMeetingOptimistic(
+      name: "",
+      phone: "",
+      project: "",
       content: _contentController.text,
       imagePath: _selectedImage!.path,
-    ).then((_) {
-      setState(() {
-        _customerNameController.clear();
-        _customerPhoneController.clear();
-        _projectController.clear();
-        _contentController.clear();
-        _selectedImage = null;
-        _detectedFaces = 0;
-      });
-    });
+      onSuccess: () {
+        // Reset form NGAY LẬP TỨC (<200ms), không chờ API
+        setState(() {
+          _contentController.clear();
+          _selectedImage = null;
+        });
+      },
+    );
   }
 
   @override
@@ -202,12 +309,13 @@ class _ThucChienViewState extends State<ThucChienView> {
               backgroundColor: const Color(0xFF0F2C59).withOpacity(0.08),
               child: const Icon(Icons.groups_rounded, color: Color(0xFF0F2C59), size: 22),
             ),
-            title: Text(customer, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            title: Text('Thực chiến $dateStr', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 2),
-                Text('Dự án: $project', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text('Nội dung: ${item['content'] ?? ''}', style: const TextStyle(fontSize: 12, color: Colors.grey), maxLines: 2, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 4),
                 Text('Ngày: $dateStr', style: const TextStyle(fontSize: 12, color: Color(0xFF0F2C59), fontWeight: FontWeight.w600)),
               ],
             ),
@@ -313,47 +421,6 @@ class _ThucChienViewState extends State<ThucChienView> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F2C59)),
                   ),
                   const Divider(height: 24),
-                  const Text("TÊN KHÁCH HÀNG", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    controller: _customerNameController,
-                    decoration: InputDecoration(
-                      hintText: "Nhập họ và tên khách hàng",
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    ),
-                    validator: (v) => v == null || v.isEmpty ? "Vui lòng nhập tên khách hàng" : null,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Số điện thoại khách hàng
-                  const Text("SỐ ĐIỆN THOẠI KHÁCH HÀNG", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    controller: _customerPhoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      hintText: "Nhập số điện thoại khách",
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    ),
-                    validator: (v) => v == null || v.isEmpty ? "Vui lòng nhập số điện thoại" : null,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Dự án tư vấn
-                  const Text("DỰ ÁN TƯ VẤN", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    controller: _projectController,
-                    decoration: InputDecoration(
-                      hintText: "Ví dụ: Trí Long Land Townhouse",
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    ),
-                    validator: (v) => v == null || v.isEmpty ? "Vui lòng nhập tên dự án" : null,
-                  ),
-                  const SizedBox(height: 16),
 
                   // Nội dung trao đổi
                   const Text("NỘI DUNG TRAO ĐỔI", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
@@ -393,36 +460,12 @@ class _ThucChienViewState extends State<ThucChienView> {
                                 const Text("(Yêu cầu xuất hiện cả Sale và khách)", style: TextStyle(fontSize: 11, color: Colors.grey)),
                               ],
                             )
-                          : _isScanningFaces
-                              ? Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: const [
-                                    CircularProgressIndicator(color: Color(0xFFD4AF37)),
-                                    SizedBox(height: 12),
-                                    Text("AI đang nhận diện khuôn mặt...", style: TextStyle(color: Color(0xFF0F2C59), fontWeight: FontWeight.bold)),
-                                  ],
-                                )
-                              : Stack(
+                          : Stack(
                                   fit: StackFit.expand,
                                   children: [
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(10),
                                       child: Image.file(_selectedImage!, fit: BoxFit.cover),
-                                    ),
-                                    Positioned(
-                                      top: 8,
-                                      right: 8,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.7),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          "AI: Phát hiện $_detectedFaces người",
-                                          style: const TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
                                     ),
                                   ],
                                 ),
@@ -430,25 +473,20 @@ class _ThucChienViewState extends State<ThucChienView> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Nút submit
-                  Obx(() {
-                    if (controller.isLoading.value) {
-                      return const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)));
-                    }
-                    return ElevatedButton.icon(
-                      onPressed: _submitMeeting,
-                      icon: const Icon(Icons.check_circle_outline, color: Colors.white),
-                      label: const Text(
-                        "GỬI BÁO CÁO GẶP MẶT",
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F2C59),
-                        minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    );
-                  }),
+                  // Nút submit — luôn hiển thị vì Optimistic UI không block màn hình
+                  ElevatedButton.icon(
+                    onPressed: _submitMeeting,
+                    icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                    label: const Text(
+                      "GỬI BÁO CÁO GẶP MẶT",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F2C59),
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
                 ],
               ),
             ),

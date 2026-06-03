@@ -213,8 +213,14 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
     final scannedCode = await Get.to(() => const QrScannerView());
 
     if (scannedCode != null && scannedCode.toString().isNotEmpty) {
+      String scannedCodeStr = scannedCode.toString();
+      String extractedRoomCode = scannedCodeStr;
+      if (scannedCodeStr.contains(":")) {
+        extractedRoomCode = scannedCodeStr.split(":")[0];
+      }
+      
       // Kiểm tra mã quét được có khớp với mã phòng không
-      if (scannedCode.toString() != widget.room.roomCode) {
+      if (extractedRoomCode != widget.room.roomCode) {
         Get.snackbar(
           "Lỗi mã QR",
           "Mã QR bạn quét không thuộc về lớp học này. Vui lòng quét đúng mã hiển thị trên màn hình giảng viên!",

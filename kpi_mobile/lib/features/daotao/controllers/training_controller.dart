@@ -205,4 +205,23 @@ class TrainingController extends GetxController {
       return false;
     }
   }
+
+  Future<bool> submitOneOnOne(String content, String photoUrl) async {
+    try {
+      final response = await ApiClient.dio.post('/training/1-on-1', data: {
+        'content': content,
+        'photoUrl': photoUrl,
+      });
+      if (response.data != null && response.data['status'] == 'SUCCESS') {
+        if (Get.isRegistered<KpiController>()) {
+          Get.find<KpiController>().fetchKpiData();
+        }
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Error submitting 1-1 training: $e');
+      return false;
+    }
+  }
 }
