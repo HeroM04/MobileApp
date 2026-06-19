@@ -39,5 +39,20 @@ class TrainingService {
     );
     return response.data;
   }
-}
 
+  /// Lấy danh sách buổi đào tạo ĐÃ KẾT THÚC (status = COMPLETED) kèm videoUrl.
+  /// Dùng cho màn hình "Kho Tài Liệu Đào Tạo" trên Mobile App.
+  Future<Map<String, dynamic>> getCompletedSessions() async {
+    final response = await ApiClient.dio.get('/training-sessions/completed');
+    return response.data;
+  }
+
+  /// Admin cập nhật thông tin sau buổi học: tóm tắt nội dung và link video YouTube.
+  Future<Map<String, dynamic>> updateVideoUrl(int id, String videoUrl) async {
+    final response = await ApiClient.dio.put(
+      '/training-sessions/$id',
+      data: {'videoUrl': videoUrl},
+    );
+    return response.data;
+  }
+}

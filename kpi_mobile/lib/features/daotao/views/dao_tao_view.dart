@@ -5,6 +5,7 @@ import '../../auth/controllers/auth_controller.dart';
 import 'training_detail_view.dart';
 import 'qr_token_display.dart';
 import 'dao_tao_1_on_1_view.dart';
+import 'training_archive_view.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
 
 class DaoTaoView extends StatefulWidget {
@@ -228,7 +229,7 @@ class _DaoTaoViewState extends State<DaoTaoView> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Column(
         children: [
           Container(
@@ -237,16 +238,20 @@ class _DaoTaoViewState extends State<DaoTaoView> {
               indicatorColor: Color(0xFF0F2C59),
               labelColor: Color(0xFF0F2C59),
               unselectedLabelColor: Colors.grey,
-              labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
               indicatorSize: TabBarIndicatorSize.tab,
               tabs: [
                 Tab(
                   icon: Icon(Icons.school_rounded),
-                  text: "PHÒNG ĐÀO TẠO",
+                  text: "PHÒNG HỌC",
                 ),
                 Tab(
                   icon: Icon(Icons.history_rounded),
-                  text: "LỊCH SỬ HỌC",
+                  text: "LỊCH SỬ",
+                ),
+                Tab(
+                  icon: Icon(Icons.video_library_rounded),
+                  text: "KHO VIDEO",
                 ),
               ],
             ),
@@ -256,6 +261,7 @@ class _DaoTaoViewState extends State<DaoTaoView> {
               children: [
                 _buildSubmitTab(),
                 _buildHistoryTab(),
+                const TrainingArchiveView(),
               ],
             ),
           ),
@@ -378,7 +384,7 @@ class _DaoTaoViewState extends State<DaoTaoView> {
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE11D48), // Red/Pink accent color
+                        backgroundColor: const Color(0xFFE11D48),
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),

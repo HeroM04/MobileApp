@@ -51,5 +51,12 @@
 	<string>Ứng dụng cần lấy vị trí của bạn để chấm công chính xác</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Ứng dụng cần lấy vị trí của bạn để chấm công chính xác</string>
+	<!-- url_launcher: khai báo scheme để kiểm tra và mở YouTube App trên iOS -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>youtube</string>
+		<string>https</string>
+		<string>http</string>
+	</array>
 </dict>
 </plist>

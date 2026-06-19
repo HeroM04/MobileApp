@@ -11,7 +11,27 @@ class ApiClient {
   // Chế độ Mock Development để thiết kế UI nhanh không cần bật backend
   static const bool isDebugMode = false;
 
-  static const _secureStorage = FlutterSecureStorage();
+  static const _secureStorage = FlutterSecureStorage(
+    wOptions: WindowsOptions(useBackwardCompatibility: false),
+  );
+
+  /// Đọc token an toàn – bắt lỗi CryptUnprotectData trên Windows
+  static Future<String?> _safeRead(String key) async {
+    try {
+      return await _secureStorage.read(key: key);
+    } catch (e) {
+      debugLog('⚠️ SecureStorage read lỗi ($key): $e');
+      debugLog('   → Xoá storage bị hỏng để tránh crash liên tục...');
+      try {
+        await _secureStorage.deleteAll();
+      } catch (_) {}
+      // Đăng xuất nếu AuthController đã sẵn sàng
+      if (getx.Get.isRegistered<AuthController>()) {
+        getx.Get.find<AuthController>().logout();
+      }
+      return null;
+    }
+  }
 
   static final Dio dio = _buildDio();
 
@@ -71,7 +91,7 @@ class ApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           if (!isDebugMode) {
-            final token = await _secureStorage.read(key: 'accessToken');
+            final token = await _safeRead('accessToken');
             if (token != null) {
               options.headers['Authorization'] = 'Bearer $token';
             }
@@ -81,7 +101,7 @@ class ApiClient {
         onError: (DioException e, handler) async {
           // Tự động làm mới access token nếu gặp lỗi 401 Unauthorized
           if (!isDebugMode && e.response?.statusCode == 401) {
-            final refreshToken = await _secureStorage.read(key: 'refreshToken');
+            final refreshToken = await _safeRead('refreshToken');
             if (refreshToken != null) {
               try {
                 // Gọi API refresh token (dùng instance Dio mới tránh lặp vô tận interceptor)

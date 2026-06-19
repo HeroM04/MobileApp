@@ -19,6 +19,7 @@ class AuthController extends GetxController {
   void onInit() {
     super.onInit();
     checkLoginStatus();
+    wakeUpServer(); // Gọi ngầm để đánh thức Render ngay khi mở app
   }
 
   // 1. Kiểm tra trạng thái đăng nhập khi mở App
@@ -56,23 +57,18 @@ class AuthController extends GetxController {
     }
   }
 
-  // HÀM KIỂM TRA TRẠNG THÁI SERVER (ĐÁNH THỨC RENDER)
-  Future<bool> checkServerStatus() async {
+  // HÀM ĐÁNH THỨC RENDER NGẦM KHI MỞ APP
+  Future<void> wakeUpServer() async {
     try {
-      final response = await ApiClient.dio.get(
-        '/health', // Endpoint nhẹ nhất hoặc một endpoint public nào đó trên server
+      await ApiClient.dio.get(
+        '/health', 
         options: dio_pkg.Options(
-          sendTimeout: const Duration(seconds: 5),
-          receiveTimeout: const Duration(seconds: 5),
+          sendTimeout: const Duration(seconds: 3),
+          receiveTimeout: const Duration(seconds: 3),
         ),
       );
-      // Nếu server phản hồi bất kỳ mã nào (kể cả 404, 401) đều chứng tỏ server đã SỐNG
-      return response.statusCode != null;
-    } catch (e) {
-      if (e is dio_pkg.DioException && e.response != null) {
-        return true; // Server sống nhưng trả mã lỗi 4xx, 5xx
-      }
-      return false; // SocketTimeout, ConnectionRefused -> Server đang ngủ
+    } catch (_) {
+      // Bỏ qua lỗi vì mục đích chỉ là gửi request để Render khởi động
     }
   }
 
@@ -149,19 +145,7 @@ class AuthController extends GetxController {
         Get.offAll(() => ShellView());
       } else {
         // --- CHẾ ĐỘ THỰC TẾ (CONNECT BACKEND) ---
-        // 1. Kiểm tra trạng thái server trước (Ping 5s)
-        bool isServerUp = await checkServerStatus();
-        if (!isServerUp) {
-          isLoading.value = false;
-          Get.snackbar(
-            "Hệ thống đang khởi động", 
-            "Server đang được đánh thức. Vui lòng đợi khoảng 1 phút rồi bấm Đăng nhập lại nhé!",
-            duration: const Duration(seconds: 5),
-          );
-          return;
-        }
-
-        // 2. Nếu server sống, gọi API đăng nhập với Timeout 60s
+        // Gọi thẳng API đăng nhập với Timeout 60s để chờ Render thức dậy
         final response = await ApiClient.dio.post(
           '/auth/login', 
           data: {

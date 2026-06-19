@@ -15,6 +15,7 @@ class TrainingRoom {
   final int maxSlots;
   final int currentSlots;
   final String status;
+  final String? videoUrl; // Link YouTube — chỉ có sau khi buổi học COMPLETED
   final RxList<Map<String, dynamic>> participants;
 
   TrainingRoom({
@@ -27,6 +28,7 @@ class TrainingRoom {
     required this.maxSlots,
     required this.currentSlots,
     required this.status,
+    this.videoUrl,
     List<Map<String, dynamic>>? initialParticipants,
   }) : participants = (initialParticipants ?? <Map<String, dynamic>>[]).obs;
 
@@ -68,6 +70,7 @@ class TrainingRoom {
         maxSlots: json['maxSlots'] is int ? json['maxSlots'] : int.tryParse(json['maxSlots'].toString()) ?? 0,
         currentSlots: json['currentSlots'] is int ? json['currentSlots'] : int.tryParse(json['currentSlots'].toString()) ?? 0,
         status: json['status']?.toString() ?? '',
+        videoUrl: json['videoUrl']?.toString(),
         initialParticipants: parsedAttendees,
       );
     } catch (e) {
@@ -91,12 +94,15 @@ class TrainingController extends GetxController {
   final TrainingService _trainingService = TrainingService();
 
   var rooms = <TrainingRoom>[].obs;
+  var completedRooms = <TrainingRoom>[].obs; // Kho tài liệu đào tạo đã kết thúc
   var isLoading = false.obs;
+  var isLoadingCompleted = false.obs;
 
   @override
   void onInit() {
     super.onInit();
     fetchRooms();
+    fetchCompletedRooms(); // Load kho tài liệu ngay khi khởi động
   }
 
   Future<List<Map<String, dynamic>>> fetchHistory(String date) async {
@@ -196,12 +202,44 @@ class TrainingController extends GetxController {
     try {
       final response = await _trainingService.updateStatus(roomId, 'COMPLETED');
       if (response['status'] == 'SUCCESS') {
-        fetchRooms(); // Refresh danh sách
+        fetchRooms(); // Refresh danh sách phòng đang hoạt động
+        fetchCompletedRooms(); // Refresh kho tài liệu
         return true;
       }
       return false;
     } catch (e) {
       print('Error ending room: $e');
+      return false;
+    }
+  }
+
+  /// Lấy danh sách buổi đào tạo đã kết thúc (Kho Tài Liệu Đào Tạo)
+  Future<void> fetchCompletedRooms() async {
+    try {
+      isLoadingCompleted.value = true;
+      final response = await _trainingService.getCompletedSessions();
+      if (response['status'] == 'SUCCESS') {
+        final List<dynamic> data = response['data'];
+        completedRooms.value = data.map((e) => TrainingRoom.fromJson(e)).toList();
+      }
+    } catch (e) {
+      print('Error fetching completed rooms: $e');
+    } finally {
+      isLoadingCompleted.value = false;
+    }
+  }
+
+  /// Admin cập nhật link YouTube sau khi buổi học kết thúc
+  Future<bool> updateVideoUrl(int roomId, String videoUrl) async {
+    try {
+      final response = await _trainingService.updateVideoUrl(roomId, videoUrl);
+      if (response['status'] == 'SUCCESS') {
+        fetchCompletedRooms(); // Refresh kho tài liệu
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Error updating video URL: $e');
       return false;
     }
   }
