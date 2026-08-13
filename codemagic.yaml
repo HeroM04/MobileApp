@@ -1,0 +1,126 @@
+# ============================================================
+#  Codemagic — build file iOS (.ipa) trên máy Mac đám mây
+#
+#  Dùng khi máy phát triển chạy Windows (không build được iOS).
+#  Cách dùng: xem HUONG-DAN-DEPLOY-IOS.md, mục "Cách A".
+#
+#  Có 2 workflow:
+#    - ios-testflight : build + tự đẩy lên TestFlight (dùng khi phát hành)
+#    - ios-unsigned   : build thử KHÔNG cần tài khoản Apple (kiểm tra code)
+# ============================================================
+
+workflows:
+
+  # ----------------------------------------------------------
+  # 1) BUILD + PHÁT HÀNH LÊN TESTFLIGHT
+  #    Yêu cầu: tài khoản Apple Developer (99 USD/năm) + App Store Connect API key
+  # ----------------------------------------------------------
+  ios-testflight:
+    name: iOS - Build IPA va day len TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    environment:
+      flutter: 3.38.5
+      xcode: latest
+      cocoapods: default
+      vars:
+        BUNDLE_ID: "vn.trilongland.kpi"
+        # Đường dẫn tới dự án Flutter bên trong repo
+        FLUTTER_PROJECT_DIR: "kpi_mobile"
+      # Tạo nhóm này trong Codemagic UI: Teams/App settings > Environment variables
+      # rồi kết nối App Store Connect integration (xem hướng dẫn bên dưới).
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: vn.trilongland.kpi
+
+    scripts:
+      - name: Cai dat dependencies
+        script: |
+          cd $FLUTTER_PROJECT_DIR
+          flutter pub get
+
+      - name: Kiem tra loi bien dich
+        script: |
+          cd $FLUTTER_PROJECT_DIR
+          flutter analyze --no-fatal-infos --no-fatal-warnings || true
+
+      - name: Cai CocoaPods (thu vien iOS)
+        script: |
+          cd $FLUTTER_PROJECT_DIR/ios
+          pod install --repo-update
+
+      - name: Thiet lap chu ky so (code signing)
+        script: |
+          xcode-project use-profiles
+
+      - name: Build IPA
+        script: |
+          cd $FLUTTER_PROJECT_DIR
+          flutter build ipa --release \
+            --build-name=1.0.0 \
+            --build-number=$(($PROJECT_BUILD_NUMBER + 1)) \
+            --export-options-plist=/Users/builder/export_options.plist
+
+    artifacts:
+      - kpi_mobile/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - kpi_mobile/flutter_drive.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        # Đổi thành true nếu muốn gửi duyệt lên App Store công khai
+        submit_to_app_store: false
+      email:
+        recipients:
+          - hunghot041103@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  # ----------------------------------------------------------
+  # 2) BUILD THỬ KHÔNG KÝ SỐ
+  #    KHÔNG cần tài khoản Apple. Dùng để kiểm tra code có build được không.
+  #    File tạo ra KHÔNG cài lên máy thật được — chỉ để kiểm tra.
+  # ----------------------------------------------------------
+  ios-unsigned:
+    name: iOS - Build thu (khong can tai khoan Apple)
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+
+    environment:
+      flutter: 3.38.5
+      xcode: latest
+      cocoapods: default
+      vars:
+        FLUTTER_PROJECT_DIR: "kpi_mobile"
+
+    scripts:
+      - name: Cai dat dependencies
+        script: |
+          cd $FLUTTER_PROJECT_DIR
+          flutter pub get
+
+      - name: Cai CocoaPods
+        script: |
+          cd $FLUTTER_PROJECT_DIR/ios
+          pod install --repo-update
+
+      - name: Build iOS khong ky so
+        script: |
+          cd $FLUTTER_PROJECT_DIR
+          flutter build ios --release --no-codesign
+
+    artifacts:
+      - kpi_mobile/build/ios/iphoneos/*.app
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      email:
+        recipients:
+          - hunghot041103@gmail.com
+        notify:
+          success: true
+          failure: true

@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Kpi Mobile</string>
+	<string>Trí Long Land</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -46,15 +46,29 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Ứng dụng cần sử dụng Camera để chụp ảnh check-in thực địa</string>
+	<string>Ứng dụng cần sử dụng Camera để chụp ảnh check-in thực địa, quét mã QR điểm danh và xác thực khuôn mặt</string>
+	<!-- image_picker: BẮT BUỘC khi chọn ảnh từ Thư viện (ImageSource.gallery) — thiếu sẽ crash -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ứng dụng cần truy cập Thư viện ảnh để bạn chọn ảnh báo cáo thực chiến, bài đăng và đào tạo</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Ứng dụng cần quyền lưu ảnh đã chụp vào Thư viện ảnh của bạn</string>
+	<!-- camera plugin: iOS yêu cầu khai báo micro khi khởi tạo camera có ghi âm -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Ứng dụng cần micro khi quay video trong quá trình báo cáo thực chiến</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Ứng dụng cần lấy vị trí của bạn để chấm công chính xác</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Ứng dụng cần lấy vị trí của bạn để chấm công chính xác</string>
-	<!-- url_launcher: khai báo scheme để kiểm tra và mở YouTube App trên iOS -->
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Ứng dụng cần lấy vị trí của bạn để chấm công chính xác</string>
+	<!-- url_launcher: khai báo scheme để kiểm tra và mở app ngoài (YouTube / Facebook) -->
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>youtube</string>
+		<string>vnd.youtube</string>
+		<string>fb</string>
+		<string>fbapi</string>
+		<string>fb-messenger</string>
 		<string>https</string>
 		<string>http</string>
 	</array>

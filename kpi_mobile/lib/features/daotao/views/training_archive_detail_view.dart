@@ -30,7 +30,19 @@ class _TrainingArchiveDetailViewState extends State<TrainingArchiveDetailView> {
     super.dispose();
   }
 
-  // ─── Deep-link logic: Mở YouTube App → fallback Browser ───────────────────
+  // ─── Deep-link logic: Mở App tương ứng (YouTube/Facebook) → fallback Browser ───
+
+  /// Kiểm tra URL có phải của YouTube không.
+  static bool isYouTubeUrl(String url) {
+    final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
+    return host.contains('youtube.com') || host.contains('youtu.be');
+  }
+
+  /// Kiểm tra URL có phải của Facebook không.
+  static bool isFacebookUrl(String url) {
+    final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
+    return host.contains('facebook.com') || host.contains('fb.watch') || host.contains('fb.com');
+  }
 
   /// Chuyển URL YouTube dạng web sang YouTube App deep-link scheme.
   /// Ví dụ:
@@ -42,32 +54,32 @@ class _TrainingArchiveDetailViewState extends State<TrainingArchiveDetailView> {
         .replaceFirst('http://', 'youtube://');
   }
 
-  Future<void> launchYouTubeVideo(String url) async {
+  /// Mở video bài giảng. Hỗ trợ cả link YouTube lẫn Facebook (nhóm nội bộ).
+  ///
+  /// - YouTube: thử mở YouTube App trước (trải nghiệm mượt hơn), lỗi thì mở web.
+  /// - Facebook & các link khác: mở thẳng bằng ứng dụng ngoài — iOS/Android sẽ
+  ///   tự chuyển sang app Facebook nếu đã cài, nếu không thì mở trình duyệt.
+  ///   (KHÔNG ép qua scheme youtube:// vì sẽ mở nhầm app YouTube.)
+  Future<void> launchVideo(String url) async {
     if (url.isEmpty) return;
     setState(() => _isLaunching = true);
 
     try {
-      // Bước 1: Thử mở YouTube App với deep-link scheme
-      final youtubeAppUri = Uri.parse(_toYouTubeAppScheme(url));
-      final canOpenYoutubeApp = await canLaunchUrl(youtubeAppUri);
-
-      if (canOpenYoutubeApp) {
-        await launchUrl(
-          youtubeAppUri,
-          mode: LaunchMode.externalApplication,
-        );
-      } else {
-        // Bước 2: Fallback — mở bằng trình duyệt web
-        final webUri = Uri.parse(url);
-        final canOpenBrowser = await canLaunchUrl(webUri);
-        if (canOpenBrowser) {
-          await launchUrl(
-            webUri,
-            mode: LaunchMode.externalApplication,
-          );
-        } else {
-          _showError('Không thể mở video. Vui lòng kiểm tra đường link.');
+      // Chỉ dùng deep-link YouTube khi link ĐÚNG là của YouTube
+      if (isYouTubeUrl(url)) {
+        final youtubeAppUri = Uri.parse(_toYouTubeAppScheme(url));
+        if (await canLaunchUrl(youtubeAppUri)) {
+          await launchUrl(youtubeAppUri, mode: LaunchMode.externalApplication);
+          return;
         }
+      }
+
+      // Mặc định (Facebook / link khác / fallback YouTube): mở bằng app ngoài
+      final webUri = Uri.parse(url);
+      if (await canLaunchUrl(webUri)) {
+        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      } else {
+        _showError('Không thể mở video. Vui lòng kiểm tra đường link.');
       }
     } catch (e) {
       _showError('Lỗi khi mở video: $e');
@@ -115,7 +127,7 @@ class _TrainingArchiveDetailViewState extends State<TrainingArchiveDetailView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'LINK VIDEO YOUTUBE',
+              'LINK VIDEO BÀI GIẢNG',
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
@@ -128,7 +140,7 @@ class _TrainingArchiveDetailViewState extends State<TrainingArchiveDetailView> {
               controller: _videoUrlController,
               keyboardType: TextInputType.url,
               decoration: InputDecoration(
-                hintText: 'https://www.youtube.com/watch?v=...',
+                hintText: 'Dán link video YouTube hoặc Facebook...',
                 hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
                 prefixIcon: const Icon(
                   Icons.link_rounded,
@@ -153,7 +165,10 @@ class _TrainingArchiveDetailViewState extends State<TrainingArchiveDetailView> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Ví dụ: https://youtu.be/dQw4w9WgXcQ\nhoặc https://www.youtube.com/watch?v=...',
+              'Hỗ trợ link YouTube và Facebook.\n'
+              'Ví dụ: https://youtu.be/dQw4w9WgXcQ\n'
+              'hoặc https://www.facebook.com/groups/.../posts/...\n'
+              'Lưu ý: video trong nhóm Facebook riêng tư chỉ xem được khi đã là thành viên nhóm.',
               style: TextStyle(color: Colors.grey, fontSize: 11, height: 1.4),
             ),
           ],
@@ -208,7 +223,7 @@ class _TrainingArchiveDetailViewState extends State<TrainingArchiveDetailView> {
     );
   }
 
-  // ─── Build ─────────────────────────────────────────────────────────────────
+ 
 
   @override
   Widget build(BuildContext context) {
@@ -413,7 +428,7 @@ class _TrainingArchiveDetailViewState extends State<TrainingArchiveDetailView> {
                   // CTA Button
                   _WatchVideoButton(
                     isLaunching: _isLaunching,
-                    onTap: () => launchYouTubeVideo(videoUrl),
+                    onTap: () => launchVideo(videoUrl),
                   ),
                 ] else ...[
                   // No video placeholder
@@ -621,6 +636,13 @@ class _YouTubeThumbnailPreview extends StatelessWidget {
         ? 'https://img.youtube.com/vi/$videoId/hqdefault.jpg'
         : null;
 
+    // Nhận diện nguồn video để hiển thị đúng nhãn & màu thương hiệu
+    final isFacebook =
+        _TrainingArchiveDetailViewState.isFacebookUrl(videoUrl);
+    final brandColor =
+        isFacebook ? const Color(0xFF1877F2) : const Color(0xFFFF0000);
+    final brandLabel = isFacebook ? 'Facebook' : 'YouTube';
+
     return Container(
       width: double.infinity,
       height: 200,
@@ -684,17 +706,17 @@ class _YouTubeThumbnailPreview extends StatelessWidget {
               ),
             ),
 
-            // YouTube logo + Play overlay
+            // Logo nguồn video + Play overlay
             Center(
               child: Container(
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF0000),
+                  color: brandColor,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFFF0000).withOpacity(0.4),
+                      color: brandColor.withOpacity(0.4),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),
@@ -716,12 +738,12 @@ class _YouTubeThumbnailPreview extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF0000),
+                  color: brandColor,
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Text(
-                  'YouTube',
-                  style: TextStyle(
+                child: Text(
+                  brandLabel,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
