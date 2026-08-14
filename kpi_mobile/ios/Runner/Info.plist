@@ -24,6 +24,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Khai báo tuân thủ xuất khẩu mã hoá. App chỉ dùng HTTPS tiêu chuẩn
+	     (thuộc diện miễn trừ) nên đặt false. Thiếu khoá này, mỗi bản build
+	     lên TestFlight sẽ bị kẹt ở trạng thái "Missing Compliance" và phải
+	     trả lời thủ công trên App Store Connect. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
