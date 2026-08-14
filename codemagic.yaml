@@ -28,9 +28,9 @@ workflows:
         BUNDLE_ID: "vn.trilongland.kpi"
         # Đường dẫn tới dự án Flutter bên trong repo
         FLUTTER_PROJECT_DIR: "kpi_mobile"
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: vn.trilongland.kpi
+      # Không dùng khối ios_signing tự động vì nó chỉ TÌM profile có sẵn,
+      # không tạo mới -> báo "No matching profiles found".
+      # Thay vào đó tạo/tải chứng chỉ tường minh ở bước script bên dưới (--create).
 
     scripts:
       - name: Cai dat dependencies
@@ -48,8 +48,19 @@ workflows:
           cd $FLUTTER_PROJECT_DIR/ios
           pod install --repo-update
 
-      - name: Thiet lap chu ky so (code signing)
+      - name: Tao chung chi va provisioning profile
         script: |
+          # Khoi tao kho chung chi tren may build
+          keychain initialize
+
+          # Tao MOI chung chi + profile neu Apple chua co (nho co --create).
+          # Bundle ID phai da duoc dang ky o Apple Developer > Identifiers.
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+
+          # Nap chung chi vao kho va gan profile vao du an Xcode
+          keychain add-certificates
           xcode-project use-profiles
 
       - name: Build IPA
