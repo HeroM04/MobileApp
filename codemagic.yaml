@@ -109,9 +109,17 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        # Tự đẩy lên TestFlight để nhân viên cài thử
-        submit_to_testflight: true
-        # Để false — chỉ bật khi muốn gửi duyệt lên App Store công khai
+
+        # Chỉ TẢI bản build lên App Store Connect, KHÔNG gửi duyệt External Testing.
+        # Nhóm Internal Testing (tối đa 100 người) dùng được NGAY, Apple không cần duyệt
+        # và không đòi Beta App Review Information — đủ cho app nội bộ.
+        #
+        # Đổi thành true nếu sau này cần External Testing (>100 người). Khi đó phải
+        # điền trước phần Test Information trên App Store Connect, nếu không sẽ lỗi:
+        #   "Complete test information is required ... for external testing"
+        submit_to_testflight: false
+
+        # Chỉ bật khi muốn phát hành công khai trên App Store
         submit_to_app_store: false
       email:
         recipients:
