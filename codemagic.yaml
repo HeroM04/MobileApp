@@ -21,6 +21,11 @@ workflows:
     max_build_duration: 60
 
     environment:
+      # Nhóm biến chứa CERTIFICATE_PRIVATE_KEY — tạo trong Codemagic:
+      # App settings > Environment variables, nhóm tên "appstore", đánh dấu Secure.
+      # Đây là khóa riêng dùng để tạo và tái sử dụng chứng chỉ ký số.
+      groups:
+        - appstore
       flutter: 3.38.5
       xcode: latest
       cocoapods: default
@@ -57,10 +62,15 @@ workflows:
           keychain initialize
 
           echo "===== 2. Tao/tai chung chi + profile cho $BUNDLE_ID ====="
+          # --certificate-key: khoa rieng di kem chung chi. Apple KHONG giu khoa nay,
+          #   thieu no se bao "Cannot save Signing Certificates without certificate
+          #   private key". Dung 1 khoa co dinh luu trong bien moi truong de moi lan
+          #   build deu tai lai dung chung chi cu, khong tao chung chi moi (Apple chi
+          #   cho toi da 3 chung chi phan phoi).
           # --create: tao moi neu Apple chua co.
-          # Bundle ID phai da dang ky o Apple Developer > Identifiers.
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
+            --certificate-key=@env:CERTIFICATE_PRIVATE_KEY \
             --create
 
           echo "===== 3. Nap chung chi vao keychain ====="
