@@ -28,11 +28,10 @@ workflows:
         BUNDLE_ID: "vn.trilongland.kpi"
         # Đường dẫn tới dự án Flutter bên trong repo
         FLUTTER_PROJECT_DIR: "kpi_mobile"
-      # Tạo nhóm này trong Codemagic UI: Teams/App settings > Environment variables
-      # rồi kết nối App Store Connect integration (xem hướng dẫn bên dưới).
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: vn.trilongland.kpi
+      # Bật cùng lúc với khối "integrations" bên dưới (cần tài khoản Apple Developer):
+      # ios_signing:
+      #   distribution_type: app_store
+      #   bundle_identifier: vn.trilongland.kpi
 
     scripts:
       - name: Cai dat dependencies
@@ -67,12 +66,25 @@ workflows:
       - /tmp/xcodebuild_logs/*.log
       - kpi_mobile/flutter_drive.log
 
+    # ===== BẬT PHẦN NÀY SAU KHI CÓ TÀI KHOẢN APPLE DEVELOPER =====
+    # Các bước:
+    #   1. Tạo App Store Connect API key (App Store Connect > Users and Access
+    #      > Integrations > App Store Connect API), tải file .p8
+    #   2. Codemagic: Teams > Integrations > App Store Connect > thêm key,
+    #      ĐẶT TÊN cho integration (ví dụ: trilong-appstore)
+    #   3. Bỏ dấu # ở khối "integrations" dưới đây VÀ khối "app_store_connect"
+    #      trong phần publishing, thay <TEN_INTEGRATION> bằng tên vừa đặt
+    #
+    # integrations:
+    #   app_store_connect: <TEN_INTEGRATION>
+    # ==============================================================
+
     publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-        # Đổi thành true nếu muốn gửi duyệt lên App Store công khai
-        submit_to_app_store: false
+      # Bật cùng lúc với khối "integrations" ở trên:
+      # app_store_connect:
+      #   auth: integration
+      #   submit_to_testflight: true
+      #   submit_to_app_store: false
       email:
         recipients:
           - hunghot041103@gmail.com
