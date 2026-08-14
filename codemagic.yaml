@@ -122,9 +122,9 @@ workflows:
 
         # Tự gán bản build vào nhóm External Testing này, để người có link nhận
         # bản mới ngay mà không phải gán tay.
-        # TÊN PHẢI TRÙNG KHỚP với nhóm bạn tạo ở TestFlight > External Testing.
+        # TÊN PHẢI TRÙNG KHỚP với nhóm ở TestFlight > External Testing.
         beta_groups:
-          - Sale
+          - "Sale nội bộ"
 
         # Chỉ bật khi muốn phát hành công khai trên App Store
         submit_to_app_store: false
