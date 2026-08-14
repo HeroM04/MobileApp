@@ -42,6 +42,9 @@ class ChotCanController extends GetxController {
       // Giả sử hoa hồng 1%
       double commission = dealValue * 0.01;
       
+      // Nghiệp vụ chốt căn không yêu cầu ảnh hợp đồng.
+      // Trước đây gửi lên một ảnh mẫu cố định (dummyimage.com) khiến web hiển thị
+      // như thể có chứng từ thật — bỏ đi để tránh gây hiểu nhầm khi duyệt deal.
       final response = await _chotCanService.submitDeal({
         'customerName': customerName,
         'customerPhone': customerPhone,
@@ -49,7 +52,6 @@ class ChotCanController extends GetxController {
         'unit': unitCode,
         'price': dealValue,
         'commission': commission,
-        'contractPhotoUrl': 'https://dummyimage.com/600x400/000/fff&text=HopDong', // Dummy
       });
       
       if (response['status'] == 'SUCCESS') {
