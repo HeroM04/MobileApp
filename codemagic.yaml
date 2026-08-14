@@ -50,18 +50,32 @@ workflows:
 
       - name: Tao chung chi va provisioning profile
         script: |
-          # Khoi tao kho chung chi tren may build
+          # Dung ngay khi co lenh loi, de khong am tham bo qua buoc ky so
+          set -e
+
+          echo "===== 1. Khoi tao kho chung chi ====="
           keychain initialize
 
-          # Tao MOI chung chi + profile neu Apple chua co (nho co --create).
-          # Bundle ID phai da duoc dang ky o Apple Developer > Identifiers.
+          echo "===== 2. Tao/tai chung chi + profile cho $BUNDLE_ID ====="
+          # --create: tao moi neu Apple chua co.
+          # Bundle ID phai da dang ky o Apple Developer > Identifiers.
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
 
-          # Nap chung chi vao kho va gan profile vao du an Xcode
+          echo "===== 3. Nap chung chi vao keychain ====="
           keychain add-certificates
+
+          echo "===== 4. Gan profile vao du an Xcode ====="
           xcode-project use-profiles
+
+          echo "===== 5. KIEM TRA KET QUA ====="
+          echo "--- Provisioning profile da tai ve ---"
+          ls -la "$HOME/Library/MobileDevice/Provisioning Profiles/" 2>/dev/null \
+            || echo "!!! KHONG co profile nao"
+          echo "--- Chung chi ky so trong keychain ---"
+          security find-identity -v -p codesigning \
+            || echo "!!! KHONG co chung chi nao"
 
       - name: Build IPA
         script: |
