@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -5,8 +8,21 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// ─── Thông tin ký số bản phát hành ────────────────────────────────────────
+// Đọc từ file android/key.properties (KHÔNG commit lên Git).
+// Thiếu file này thì tự lùi về khoá debug để `flutter run` vẫn chạy được,
+// nhưng bản phát hành thật BẮT BUỘC phải có khoá riêng — nếu ký bằng khoá
+// debug thì mỗi máy build ra một chữ ký khác nhau, Android sẽ từ chối cài đè
+// khi cập nhật ("App not installed").
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+val hasReleaseKeystore = keystorePropertiesFile.exists()
+if (hasReleaseKeystore) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
 android {
-    namespace = "com.example.kpi_mobile"
+    namespace = "vn.trilongland.kpi"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -20,21 +36,34 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.kpi_mobile"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        // Định danh app — phải trùng với Bundle ID bên iOS và với app đã khai
+        // trên Firebase. Đổi giá trị này coi như là một ứng dụng khác.
+        applicationId = "vn.trilongland.kpi"
         minSdk = flutter.minSdkVersion // Yêu cầu từ mobile_scanner
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                // Chỉ dùng khi chạy thử trên máy dev
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

@@ -43,3 +43,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# ── Khóa ký số bản phát hành Android — TUYỆT ĐỐI KHÔNG commit ──────────────
+# Mất khóa này là KHÔNG BAO GIỜ cập nhật được app cho người đã cài (phải gỡ
+# rồi cài lại). Lộ khóa thì người khác có thể giả mạo bản cập nhật.
+# Hãy sao lưu file .jks ở nơi an toàn (Drive riêng, trình quản lý mật khẩu).
+/android/key.properties
+**/*.jks
+**/*.keystore
+
+# Cấu hình Firebase (chứa khóa định danh dự án)
+/android/app/google-services.json
+/ios/Runner/GoogleService-Info.plist

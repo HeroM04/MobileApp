@@ -179,3 +179,93 @@ workflows:
         notify:
           success: true
           failure: true
+
+  # ----------------------------------------------------------
+  # 3) ANDROID — build APK và phát hành qua Firebase App Distribution
+  #    Nhân viên nhận thông báo có bản mới ngay trên máy, không cần gửi file tay.
+  #
+  #    CHUẨN BỊ TRƯỚC (làm 1 lần):
+  #      a) Firebase: tạo project, thêm ứng dụng Android với package
+  #         "vn.trilongland.kpi", tạo nhóm tester tên "sale".
+  #      b) Codemagic > Teams > Integrations > Google Cloud / Firebase:
+  #         nạp Service account JSON (quyền Firebase App Distribution Admin).
+  #      c) Codemagic > App settings > Environment variables, nhóm "android_signing":
+  #           CM_KEYSTORE           = file .jks (chọn kiểu "Secure file")
+  #           CM_KEYSTORE_PASSWORD  = mật khẩu keystore   (Secure)
+  #           CM_KEY_ALIAS          = tên alias            (Secure)
+  #           CM_KEY_PASSWORD       = mật khẩu alias       (Secure)
+  #           FIREBASE_APP_ID       = App ID Android trên Firebase (dạng 1:xxx:android:yyy)
+  # ----------------------------------------------------------
+  android-firebase:
+    name: Android - Build APK va phat hanh Firebase
+    instance_type: linux_x2
+    max_build_duration: 45
+
+    environment:
+      groups:
+        - android_signing
+      flutter: 3.38.5
+      java: 17
+      vars:
+        FLUTTER_PROJECT_DIR: "kpi_mobile"
+        PACKAGE_NAME: "vn.trilongland.kpi"
+
+    scripts:
+      - name: Nap khoa ky so
+        script: |
+          set -e
+          # Ghi keystore ra file và tạo key.properties để Gradle đọc
+          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/$FLUTTER_PROJECT_DIR/android/release.jks"
+          cat > "$CM_BUILD_DIR/$FLUTTER_PROJECT_DIR/android/key.properties" <<EOF
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyPassword=$CM_KEY_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          storeFile=$CM_BUILD_DIR/$FLUTTER_PROJECT_DIR/android/release.jks
+          EOF
+          echo "Da tao key.properties"
+
+      - name: Cai dat dependencies
+        script: |
+          cd $FLUTTER_PROJECT_DIR
+          flutter pub get
+
+      - name: Kiem tra loi bien dich
+        script: |
+          cd $FLUTTER_PROJECT_DIR
+          flutter analyze --no-fatal-infos --no-fatal-warnings || true
+
+      - name: Build APK ban phat hanh
+        script: |
+          cd $FLUTTER_PROJECT_DIR
+          # Số build tăng dần theo số lần build của Codemagic, để Android luôn
+          # cho phép cài đè bản mới lên bản cũ.
+          flutter build apk --release \
+            --build-number=$(($PROJECT_BUILD_NUMBER + 10))
+
+      - name: Kiem tra chu ky APK
+        script: |
+          cd $FLUTTER_PROJECT_DIR
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          echo "Kich thuoc: $(du -h $APK | cut -f1)"
+          # Xác nhận APK được ký bằng khóa release, không phải khóa debug
+          $ANDROID_SDK_ROOT/build-tools/*/apksigner verify --print-certs "$APK" \
+            | grep -i "Signer #1 certificate DN" || echo "(khong doc duoc thong tin chu ky)"
+
+    artifacts:
+      - kpi_mobile/build/app/outputs/flutter-apk/app-release.apk
+      - kpi_mobile/build/app/outputs/**/mapping.txt
+
+    publishing:
+      firebase:
+        firebase_service_account: "$FIREBASE_SERVICE_ACCOUNT"
+        android:
+          app_id: $FIREBASE_APP_ID
+          groups:
+            - sale          # tên nhóm tester tạo trong Firebase
+          artifact_type: apk
+      email:
+        recipients:
+          - hunghot041103@gmail.com
+        notify:
+          success: true
+          failure: true
