@@ -187,15 +187,20 @@ workflows:
   #    CHUẨN BỊ TRƯỚC (làm 1 lần):
   #      a) Firebase: tạo project, thêm ứng dụng Android với package
   #         "vn.trilongland.kpi", tạo nhóm tester tên "sale".
-  #      b) Codemagic > Teams > Integrations > Google Cloud / Firebase:
-  #         nạp Service account JSON (quyền Firebase App Distribution Admin).
-  #      c) Codemagic > App settings > Environment variables, nhóm "android_signing":
-  #           CM_KEYSTORE           = file .jks (chọn kiểu "Secure file")
-  #           CM_KEYSTORE_PASSWORD  = mật khẩu keystore   (Secure)
-  #           CM_KEY_ALIAS          = tên alias            (Secure)
-  #           CM_KEY_PASSWORD       = mật khẩu alias       (Secure)
-  #      (App ID không phải bí mật nên ghi thẳng ở phần vars bên dưới,
-  #       không cần khai thêm biến.)
+  #
+  #      b) Codemagic > App settings > Environment variables, tất cả đặt vào
+  #         nhóm "android_signing" (Codemagic KHÔNG có integration Firebase —
+  #         service account nạp bằng biến môi trường):
+  #
+  #           FIREBASE_SERVICE_ACCOUNT = DÁN TOÀN BỘ nội dung file JSON tải từ
+  #                                      Firebase > Settings > Service accounts
+  #                                      > Generate new private key   (Secure)
+  #           CM_KEYSTORE              = file .jks (chọn kiểu "Secure file")
+  #           CM_KEYSTORE_PASSWORD     = mật khẩu keystore             (Secure)
+  #           CM_KEY_ALIAS             = tên alias                     (Secure)
+  #           CM_KEY_PASSWORD          = mật khẩu alias                (Secure)
+  #
+  #      (App ID không phải bí mật nên ghi thẳng ở phần vars bên dưới.)
   # ----------------------------------------------------------
   android-firebase:
     name: Android - Build APK va phat hanh Firebase
