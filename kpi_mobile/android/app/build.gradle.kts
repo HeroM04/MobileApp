@@ -50,7 +50,10 @@ android {
             create("release") {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+                // Dùng rootProject.file() để đường dẫn tính từ thư mục android/
+                // (nơi đặt key.properties), không phải android/app/.
+                // Đường dẫn tuyệt đối vẫn dùng được bình thường — Codemagic ghi kiểu đó.
+                storeFile = keystoreProperties["storeFile"]?.let { rootProject.file(it) }
                 storePassword = keystoreProperties["storePassword"] as String
             }
         }
