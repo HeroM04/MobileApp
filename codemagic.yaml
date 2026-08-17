@@ -194,7 +194,8 @@ workflows:
   #           CM_KEYSTORE_PASSWORD  = mật khẩu keystore   (Secure)
   #           CM_KEY_ALIAS          = tên alias            (Secure)
   #           CM_KEY_PASSWORD       = mật khẩu alias       (Secure)
-  #           FIREBASE_APP_ID       = App ID Android trên Firebase (dạng 1:xxx:android:yyy)
+  #      (App ID không phải bí mật nên ghi thẳng ở phần vars bên dưới,
+  #       không cần khai thêm biến.)
   # ----------------------------------------------------------
   android-firebase:
     name: Android - Build APK va phat hanh Firebase
@@ -209,6 +210,9 @@ workflows:
       vars:
         FLUTTER_PROJECT_DIR: "kpi_mobile"
         PACKAGE_NAME: "vn.trilongland.kpi"
+        # App ID của ứng dụng Android trên Firebase (Project settings > Your apps).
+        # Đây là mã định danh công khai, không phải khóa bí mật.
+        FIREBASE_APP_ID: "1:4323767453:android:1d2051ba4523a5e8fb1074"
 
     scripts:
       - name: Nap khoa ky so
