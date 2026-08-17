@@ -204,7 +204,10 @@ workflows:
   # ----------------------------------------------------------
   android-firebase:
     name: Android - Build APK va phat hanh Firebase
-    instance_type: linux_x2
+    # Gói miễn phí của Codemagic chỉ cấp máy mac_mini_m2 (linux_x2 báo lỗi
+    # "instance type is not available with the current billing plan").
+    # Máy Mac build Android hoàn toàn bình thường vì đã có sẵn Android SDK.
+    instance_type: mac_mini_m2
     max_build_duration: 45
 
     environment:
@@ -256,9 +259,16 @@ workflows:
           cd $FLUTTER_PROJECT_DIR
           APK=build/app/outputs/flutter-apk/app-release.apk
           echo "Kich thuoc: $(du -h $APK | cut -f1)"
-          # Xác nhận APK được ký bằng khóa release, không phải khóa debug
-          $ANDROID_SDK_ROOT/build-tools/*/apksigner verify --print-certs "$APK" \
-            | grep -i "Signer #1 certificate DN" || echo "(khong doc duoc thong tin chu ky)"
+
+          # Xác nhận APK ký bằng khóa release, KHÔNG phải khóa debug.
+          # Tìm apksigner linh hoạt vì đường dẫn SDK khác nhau giữa các máy build.
+          SIGNER=$(find "${ANDROID_SDK_ROOT:-$ANDROID_HOME}" -name apksigner -type f 2>/dev/null | sort -r | head -1)
+          if [ -n "$SIGNER" ]; then
+            "$SIGNER" verify --print-certs "$APK" | grep -i "certificate DN" \
+              || echo "(khong doc duoc thong tin chu ky)"
+          else
+            echo "(khong tim thay apksigner - bo qua buoc kiem tra)"
+          fi
 
     artifacts:
       - kpi_mobile/build/app/outputs/flutter-apk/app-release.apk
