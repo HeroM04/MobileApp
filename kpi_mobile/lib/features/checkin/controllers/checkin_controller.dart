@@ -96,22 +96,19 @@ class CheckinController extends GetxController {
         File watermarkedFile = await _addWatermark(imageFile, currentAddress);
         selectedImage.value = watermarkedFile;
 
-        // 5. Tính toán khoảng cách (Haversine)
-        int allowedRadius = 2000;
-        
+        // 5. Tính khoảng cách tới văn phòng (tọa độ + bán kính lấy theo phòng ban)
+        final office = _getOfficeConfig();
         double distance = _calculateDistanceToOffice(currentLat, currentLng);
-        
-        // Debug cho người dùng thấy khoảng cách thực tế
-        double officeLat = 20.999042;
-        double officeLng = 105.806702;
 
         Get.snackbar(
-          "Thông tin GPS Chi Tiết", 
-          "Cách cty: ${distance.toStringAsFixed(0)}m.\nGPS Bạn: $currentLat, $currentLng\nGPS Cty: $officeLat, $officeLng",
+          "Thông tin GPS Chi Tiết",
+          "Cách cty: ${distance.toStringAsFixed(0)}m (cho phép ${office.radius.toStringAsFixed(0)}m)."
+          "\nGPS Bạn: $currentLat, $currentLng"
+          "\nGPS Cty: ${office.lat}, ${office.lng}",
           duration: const Duration(seconds: 8),
         );
 
-        if (distance > allowedRadius) {
+        if (distance > office.radius) {
           isOutOfRange.value = true;
           // UI sẽ tự hiện popup nhập Note nhờ isOutOfRange.value = true
         } else {
@@ -216,11 +213,43 @@ class CheckinController extends GetxController {
   }
 
   /// Tính khoảng cách bằng công thức Haversine trên Mobile
+  // ── Cấu hình văn phòng ────────────────────────────────────────────────────
+  // Giá trị mặc định chỉ dùng khi máy chủ chưa trả về (tránh chặn chấm công).
+  static const double _defaultOfficeLat = 20.999042;
+  static const double _defaultOfficeLng = 105.806702;
+  static const double _defaultRadius = 2000;
+
+  /// Lấy tọa độ + bán kính văn phòng từ thông tin đăng nhập.
+  ///
+  /// Backend trả các giá trị này theo phòng ban của nhân viên, nên khi công ty
+  /// đổi địa điểm chỉ cần sửa trên Web Admin — KHÔNG phải cập nhật lại app.
+  ({double lat, double lng, double radius}) _getOfficeConfig() {
+    double lat = _defaultOfficeLat;
+    double lng = _defaultOfficeLng;
+    double radius = _defaultRadius;
+
+    if (Get.isRegistered<AuthController>()) {
+      final user = Get.find<AuthController>().currentUser;
+      final srvLat = (user['officeLat'] as num?)?.toDouble();
+      final srvLng = (user['officeLng'] as num?)?.toDouble();
+      final srvRadius = (user['allowedRadius'] as num?)?.toDouble();
+
+      // Chỉ dùng khi máy chủ có dữ liệu thật (khác null và khác 0)
+      if (srvLat != null && srvLng != null && srvLat != 0 && srvLng != 0) {
+        lat = srvLat;
+        lng = srvLng;
+      }
+      if (srvRadius != null && srvRadius > 0) {
+        radius = srvRadius;
+      }
+    }
+
+    return (lat: lat, lng: lng, radius: radius);
+  }
+
   double _calculateDistanceToOffice(double lat, double lng) {
-    double officeLat = 20.999042;
-    double officeLng = 105.806702;
-    double distance = Geolocator.distanceBetween(lat, lng, officeLat, officeLng);
-    return distance;
+    final office = _getOfficeConfig();
+    return Geolocator.distanceBetween(lat, lng, office.lat, office.lng);
   }
 
   /// Xử lý lấy toạ độ và Check-out không cần chụp ảnh
