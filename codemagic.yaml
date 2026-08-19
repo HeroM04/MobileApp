@@ -90,9 +90,14 @@ workflows:
       - name: Build IPA
         script: |
           cd $FLUTTER_PROJECT_DIR
+          # Tên phiên bản lấy thẳng từ pubspec.yaml để iOS và Android luôn cùng
+          # một con số. Trước đây ghi cứng 1.0.0 nên TestFlight hiện sai bản.
+          #
+          # Số build cộng thêm 100 để chắc chắn lớn hơn mọi bản đã tải lên trước
+          # đây (App Store Connect từ chối bản có số build không tăng). Vẫn tăng
+          # dần theo số lần build của Codemagic nên không bao giờ lặp lại.
           flutter build ipa --release \
-            --build-name=1.0.0 \
-            --build-number=$(($PROJECT_BUILD_NUMBER + 1)) \
+            --build-number=$(($PROJECT_BUILD_NUMBER + 100)) \
             --export-options-plist=/Users/builder/export_options.plist
 
     artifacts:
