@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../controllers/checkin_controller.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
+import 'leave_request_tab.dart';
 
 class CheckinView extends StatelessWidget {
   final CheckinController controller = Get.put(CheckinController());
@@ -16,7 +17,7 @@ class CheckinView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Column(
         children: [
           Container(
@@ -25,12 +26,16 @@ class CheckinView extends StatelessWidget {
               indicatorColor: Color(0xFF0F2C59),
               labelColor: Color(0xFF0F2C59),
               unselectedLabelColor: Colors.grey,
-              labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
               indicatorSize: TabBarIndicatorSize.tab,
               tabs: [
                 Tab(
                   icon: Icon(Icons.fingerprint_rounded),
                   text: "CHẤM CÔNG",
+                ),
+                Tab(
+                  icon: Icon(Icons.event_busy_rounded),
+                  text: "XIN VẮNG",
                 ),
                 Tab(
                   icon: Icon(Icons.history_rounded),
@@ -43,6 +48,7 @@ class CheckinView extends StatelessWidget {
             child: TabBarView(
               children: [
                 _buildSubmitTab(),
+                const LeaveRequestTab(),
                 _buildHistoryTab(),
               ],
             ),

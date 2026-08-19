@@ -22,6 +22,9 @@ class _BaiPostViewState extends State<BaiPostView> {
   final TextEditingController _captionController = TextEditingController();
 
   File? _screenshot;
+  /// VIDEO = video xây kênh, POST = bài đăng/story. Cả hai cùng 5đ nhóm Lan tỏa,
+  /// tách ra để Admin theo dõi được ai chịu khó làm video.
+  String _contentType = 'POST';
   bool _isOcrScanning = false;
   bool _scanCompleted = false;
   bool _isValidPost = false;
@@ -81,6 +84,7 @@ class _BaiPostViewState extends State<BaiPostView> {
     if (_isValidPost) {
       final success = await controller.submitPost(
         platform: _urlController.text.contains("facebook") ? "FACEBOOK" : "OTHER",
+        contentType: _contentType,
         link: _urlController.text,
         caption: _captionController.text,
         screenshotUrl: _screenshot!.path, // Replace with real URL upload later
@@ -164,6 +168,7 @@ class _BaiPostViewState extends State<BaiPostView> {
         final platform = item['platform'] ?? 'Khác';
         final link = item['link'] ?? '';
         final status = item['status'] ?? 'PENDING';
+        final isVideo = item['contentType'] == 'VIDEO';
 
         return Card(
           elevation: 2,
@@ -173,9 +178,13 @@ class _BaiPostViewState extends State<BaiPostView> {
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: CircleAvatar(
               backgroundColor: const Color(0xFF0F2C59).withOpacity(0.08),
-              child: const Icon(Icons.article_rounded, color: Color(0xFF0F2C59), size: 22),
+              child: Icon(isVideo ? Icons.videocam_rounded : Icons.article_rounded,
+                  color: const Color(0xFF0F2C59), size: 22),
             ),
-            title: Text(platform, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            title: Text(
+              '${isVideo ? "Video xây kênh" : "Bài đăng"} · $platform',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -199,6 +208,40 @@ class _BaiPostViewState extends State<BaiPostView> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildTypeChip(String value, String label, IconData icon) {
+    final bool selected = _contentType == value;
+    return GestureDetector(
+      onTap: () => setState(() => _contentType = value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF0F2C59) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: selected ? const Color(0xFF0F2C59) : const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: selected ? Colors.white : const Color(0xFF1B3B6F)),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: selected ? Colors.white : const Color(0xFF1B3B6F),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -238,6 +281,18 @@ class _BaiPostViewState extends State<BaiPostView> {
                     style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.3),
                   ),
                   const Divider(height: 24),
+
+                  // Phân loại lan tỏa — video xây kênh hay bài đăng thường
+                  const Text("PHÂN LOẠI NỘI DUNG", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(child: _buildTypeChip('POST', 'Bài đăng / Story', Icons.article_outlined)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _buildTypeChip('VIDEO', 'Video xây kênh', Icons.videocam_outlined)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
 
                   // Đường dẫn bài đăng
                   const Text("LINK BÀI VIẾT (FB/ZALO/TIKTOK)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),

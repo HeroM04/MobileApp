@@ -35,6 +35,7 @@ class BaiPostController extends GetxController {
     required String link,
     required String caption,
     required String screenshotUrl,
+    String contentType = 'POST',
   }) async {
     try {
       isLoading.value = true;
@@ -48,6 +49,7 @@ class BaiPostController extends GetxController {
 
       final response = await _postService.submitPost({
         'platform': platform,
+        'contentType': contentType,
         'link': link,
         'caption': caption,
         'screenshotUrl': realImageUrl ?? "",
