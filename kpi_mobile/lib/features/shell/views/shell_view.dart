@@ -8,6 +8,7 @@ import '../../baipost/views/bai_post_view.dart';
 import '../../daotao/views/dao_tao_view.dart';
 import '../../phanhoi/views/phan_hoi_view.dart';
 import '../../chotcan/views/chot_can_view.dart';
+import '../../gieohat/views/gieo_hat_view.dart';
 import '../../profile/views/profile_view.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../../core/widgets/logo_widget.dart';
@@ -31,10 +32,12 @@ class ShellView extends StatelessWidget {
       case 4:
         return const DaoTaoView();
       case 5:
-        return const PhanHoiView();
+        return const GieoHatView();
       case 6:
-        return const ChotCanView();
+        return const PhanHoiView();
       case 7:
+        return const ChotCanView();
+      case 8:
         return const ProfileView();
       default:
         return HomeView();
@@ -54,10 +57,12 @@ class ShellView extends StatelessWidget {
       case 4:
         return Icons.school_outlined;
       case 5:
-        return Icons.chat_bubble_outline_outlined;
+        return Icons.eco_outlined;
       case 6:
-        return Icons.domain_verification_outlined;
+        return Icons.chat_bubble_outline_outlined;
       case 7:
+        return Icons.domain_verification_outlined;
+      case 8:
         return Icons.person_outline;
       default:
         return Icons.circle_outlined;
@@ -291,7 +296,7 @@ class ShellView extends StatelessWidget {
             
             return InkWell(
               onTap: () {
-                shellController.changeMenuIndex(7);
+                shellController.changeMenuIndex(shellController.menuItems.length - 1); // Trang cá nhân
                 Get.back(); // Đóng Drawer
               },
               borderRadius: BorderRadius.circular(8),

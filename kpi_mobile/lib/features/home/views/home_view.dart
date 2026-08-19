@@ -331,18 +331,25 @@ class HomeView extends StatelessWidget {
           index: 4, // Shell index for Dao Tao
         ),
         _buildModuleCard(
+          title: "Gieo hạt",
+          subtitle: "Giới thiệu người mới",
+          icon: Icons.eco_outlined,
+          color: const Color(0xFFD4AF37),
+          index: 5, // Shell index for Gieo Hat
+        ),
+        _buildModuleCard(
           title: "Phản hồi",
           subtitle: "Góp ý kiến Admin",
           icon: Icons.chat_bubble_outline,
           color: Colors.teal,
-          index: 5, // Shell index for Phan Hoi
+          index: 6, // Shell index for Phan Hoi
         ),
         _buildModuleCard(
           title: "Chốt căn",
           subtitle: "Đăng ký chốt căn",
           icon: Icons.domain_verification_outlined,
           color: Colors.redAccent,
-          index: 6, // Shell index for Chot Can
+          index: 7, // Shell index for Chot Can
         ),
       ],
     );

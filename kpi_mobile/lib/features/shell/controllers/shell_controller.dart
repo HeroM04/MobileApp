@@ -11,6 +11,7 @@ class ShellController extends GetxController {
     "Thực chiến",
     "Bài post",
     "Đào tạo",
+    "Gieo hạt",
     "Phản hồi",
     "Chốt căn",
     "Trang cá nhân",
