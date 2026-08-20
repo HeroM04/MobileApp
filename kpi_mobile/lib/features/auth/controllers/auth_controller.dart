@@ -58,13 +58,21 @@ class AuthController extends GetxController {
   }
 
   // HÀM ĐÁNH THỨC RENDER NGẦM KHI MỞ APP
+  //
+  // Gọi /auth/ping — đường dẫn công khai, không cần token. Trước đây gọi
+  // /health là đường dẫn không hề tồn tại nên máy chủ trả về 404: vẫn đánh
+  // thức được nhưng mỗi lần mở app lại sinh một lỗi 404 trong nhật ký, làm
+  // nhiễu khi cần tra lỗi thật.
+  //
+  // Chờ 20 giây thay vì 3, vì máy chủ ngủ dậy mất 30 đến 60 giây — 3 giây thì
+  // gần như luôn quá hạn. Dù sao hàm này cũng chạy ngầm, không giữ màn hình.
   Future<void> wakeUpServer() async {
     try {
       await ApiClient.dio.get(
-        '/health', 
+        '/auth/ping',
         options: dio_pkg.Options(
-          sendTimeout: const Duration(seconds: 3),
-          receiveTimeout: const Duration(seconds: 3),
+          sendTimeout: const Duration(seconds: 20),
+          receiveTimeout: const Duration(seconds: 20),
         ),
       );
     } catch (_) {
