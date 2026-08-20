@@ -33,6 +33,18 @@ class WebSocketService {
         onWebSocketError: (dynamic error) => print('WebSocket Error: ${error.toString()}'),
         stompConnectHeaders: {'Authorization': 'Bearer $token'},
         webSocketConnectHeaders: {'Authorization': 'Bearer $token'},
+
+        // Ba mốc dưới đây trước để mặc định 5 giây, là nguyên nhân chính làm
+        // tụt pin: cứ 5 giây lại gửi một gói tin giữ nhịp nên sóng điện thoại
+        // không bao giờ được ngủ sâu. Tệ hơn, máy chủ chạy gói Render miễn phí
+        // tự ngủ khi vắng người dùng, kết nối rớt là máy thử nối lại 5 giây một
+        // lần suốt đêm, mỗi lần là một lượt bắt tay đầy đủ.
+        //
+        // Đây chỉ là kênh báo điểm KPI đổi theo thời gian thực, chậm vài chục
+        // giây không ảnh hưởng gì.
+        heartbeatOutgoing: const Duration(seconds: 30),
+        heartbeatIncoming: const Duration(seconds: 30),
+        reconnectDelay: const Duration(seconds: 30),
       ),
     );
     stompClient?.activate();

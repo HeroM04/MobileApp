@@ -55,11 +55,25 @@ class ThucChienController extends GetxController {
   // Khởi động Timer định kỳ kiểm tra mạng
   bool _checkInFlight = false;
 
+  /// Dừng bộ dò mạng. Gọi khi app lui vào nền để sóng điện thoại được ngủ.
+  void stopAutoSync() {
+    _syncTimer?.cancel();
+    _syncTimer = null;
+  }
+
+  /// Bật lại bộ dò mạng khi người dùng mở lại app.
+  void startAutoSync() {
+    if (_syncTimer != null) return;
+    _startAutoSyncTimer();
+  }
+
   void _startAutoSyncTimer() {
-    // 60 giây một lượt. Trước để 15 giây, mà một lượt dò có thể kéo dài cả phút
-    // khi máy chủ đang ngủ dậy, nên các lượt chồng lên nhau.
+    // Chỉ dò khi còn báo cáo chưa gửi được. Trước đây cứ 15 giây lại gọi máy chủ
+    // một lần bất kể có nháp hay không, chạy suốt cả ngày — vừa tốn pin vừa vô
+    // ích vì đa số thời gian không có gì để gửi.
     _syncTimer = Timer.periodic(const Duration(seconds: 60), (timer) async {
       if (_checkInFlight) return;
+      if (offlineDrafts.isEmpty) return; // không có nháp thì không cần dò mạng
       _checkInFlight = true;
       try {
         await checkNetworkAndSync();
