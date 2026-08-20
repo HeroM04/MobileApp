@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # version: <tên phiên bản>+<số build>
 # Số build PHẢI tăng mỗi lần phát hành, nếu không Android sẽ từ chối cài đè
 # và TestFlight sẽ báo trùng bản build.
-version: 1.2.0+3
+version: 1.2.1+4
 
 environment:
   sdk: ^3.10.4

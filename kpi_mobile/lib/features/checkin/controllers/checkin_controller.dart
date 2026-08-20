@@ -57,21 +57,32 @@ class CheckinController extends GetxController {
     try {
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
+        // Chấm công là chụp ảnh chính mình nên mở thẳng camera trước.
+        // Thiếu tham số này máy sẽ mở camera sau như mặc định của hệ thống.
+        preferredCameraDevice: CameraDevice.front,
         imageQuality: 70,
       ).timeout(const Duration(seconds: 30));
-      
+
       if (photo != null) {
         isLoading.value = true;
-        File imageFile = File(photo.path);
-        
+        // Xoay ảnh về đúng chiều trước khi làm gì khác. Ảnh camera trước hay bị
+        // ghi kèm thẻ xoay trong EXIF thay vì xoay thật pixel; khi image_picker
+        // nén lại (imageQuality) thẻ đó rơi mất, ảnh thành nằm ngang và ML Kit
+        // không nhận ra khuôn mặt — đúng triệu chứng cam sau chụp được mà cam
+        // trước thì báo không thấy người.
+        File imageFile = await _normalizeOrientation(File(photo.path));
+
         // 1. Google ML Kit Face Detection (Offline)
-        bool hasFace = await _detectFace(imageFile);
-        if (!hasFace) {
+        final faceResult = await _detectFace(imageFile);
+        if (!faceResult.hasFace) {
           isLoading.value = false;
-          Get.snackbar("Lỗi xác thực", "Không tìm thấy khuôn mặt! Vui lòng chụp rõ mặt bạn.", 
+          Get.snackbar("Lỗi xác thực", "Không tìm thấy khuôn mặt! Vui lòng chụp rõ mặt bạn.",
             backgroundColor: Colors.redAccent, colorText: Colors.white);
           return;
         }
+        // Nếu phải xoay thêm mới thấy mặt thì giữ luôn ảnh đã xoay, để ảnh gửi
+        // lên cho Admin duyệt cũng đúng chiều.
+        if (faceResult.correctedFile != null) imageFile = faceResult.correctedFile!;
 
         // 2. Lấy GPS & Check Fake Location
         Position? position = await _getCurrentLocation();
@@ -124,19 +135,73 @@ class CheckinController extends GetxController {
     }
   }
 
-  /// Phát hiện khuôn mặt bằng ML Kit
-  Future<bool> _detectFace(File imageFile) async {
-    final inputImage = InputImage.fromFile(imageFile);
+  /// Xoay ảnh về đúng chiều theo thẻ EXIF, ghi thẳng vào pixel.
+  ///
+  /// Máy ảnh thường không xoay ảnh thật mà chỉ ghi một thẻ "ảnh này cần xoay
+  /// bao nhiêu độ" vào EXIF. Thư viện đọc ảnh nào bỏ qua thẻ đó là thấy ảnh
+  /// nằm ngang. Hàm này nướng phép xoay vào pixel nên mọi bước sau — nhận diện
+  /// khuôn mặt, đóng dấu, gửi lên máy chủ — đều nhận ảnh đúng chiều.
+  Future<File> _normalizeOrientation(File file) async {
+    try {
+      final decoded = img.decodeImage(await file.readAsBytes());
+      if (decoded == null) return file;
+      final upright = img.bakeOrientation(decoded);
+      return _writeJpg(upright, file, 'upright');
+    } catch (e) {
+      print("Lỗi xoay ảnh: $e");
+      return file;
+    }
+  }
+
+  /// Ghi ảnh ra file JPEG cạnh file gốc, đặt tên theo hậu tố cho dễ lần.
+  Future<File> _writeJpg(img.Image image, File source, String suffix) async {
+    final dot = source.path.lastIndexOf('.');
+    final base = dot > 0 ? source.path.substring(0, dot) : source.path;
+    final out = File('${base}_$suffix.jpg');
+    await out.writeAsBytes(img.encodeJpg(image, quality: 85));
+    return out;
+  }
+
+  Future<bool> _hasFaceIn(File file, FaceDetector detector) async {
+    try {
+      final faces = await detector.processImage(InputImage.fromFile(file));
+      return faces.isNotEmpty;
+    } catch (e) {
+      print("Lỗi Face Detection: $e");
+      return false;
+    }
+  }
+
+  /// Phát hiện khuôn mặt bằng ML Kit.
+  ///
+  /// Thử ảnh nguyên trạng trước; không thấy mặt thì xoay lần lượt 90, 180, 270
+  /// độ rồi thử lại. Có máy vẫn ghi sai chiều ảnh dù đã nướng EXIF, xoay thử
+  /// như vậy tránh chặn oan người chấm công. Vẫn phải thật sự có khuôn mặt mới
+  /// qua được, nên không nới lỏng khâu xác thực.
+  Future<({bool hasFace, File? correctedFile})> _detectFace(File imageFile) async {
     final faceDetector = FaceDetector(options: FaceDetectorOptions(
+      performanceMode: FaceDetectorMode.accurate,
+      minFaceSize: 0.1,
       enableContours: false,
       enableClassification: false,
     ));
     try {
-      final faces = await faceDetector.processImage(inputImage);
-      return faces.isNotEmpty;
-    } catch (e) {
-      print("Lỗi Face Detection: $e");
-      return false; // Nếu lỗi ML kit (vd emulator ko hỗ trợ) thì vẫn chặn hoặc cho phép tuỳ business. Ở đây chặn.
+      if (await _hasFaceIn(imageFile, faceDetector)) {
+        return (hasFace: true, correctedFile: null);
+      }
+
+      final decoded = img.decodeImage(await imageFile.readAsBytes());
+      if (decoded == null) return (hasFace: false, correctedFile: null);
+
+      for (final angle in [90, 180, 270]) {
+        final rotated = await _writeJpg(
+          img.copyRotate(decoded, angle: angle), imageFile, 'rot$angle');
+        if (await _hasFaceIn(rotated, faceDetector)) {
+          print("Tìm thấy khuôn mặt sau khi xoay $angle độ");
+          return (hasFace: true, correctedFile: rotated);
+        }
+      }
+      return (hasFace: false, correctedFile: null);
     } finally {
       faceDetector.close();
     }
@@ -201,11 +266,9 @@ class CheckinController extends GetxController {
       // Vẽ chữ trắng
       img.drawString(image, watermarkText, font: font, x: 20, y: image.height - 80, color: img.ColorRgb8(255, 255, 255));
 
-      final watermarkedBytes = img.encodeJpg(image, quality: 80);
-      final newPath = originalFile.path.replaceAll('.jpg', '_watermarked.jpg');
-      final newFile = File(newPath);
-      await newFile.writeAsBytes(watermarkedBytes);
-      return newFile;
+      // Tách phần mở rộng đúng cách. Trước đây thay chuỗi '.jpg' cứng, gặp file
+      // .jpeg hay .png là không đổi được tên nên ghi đè luôn lên ảnh gốc.
+      return _writeJpg(image, originalFile, 'watermarked');
     } catch (e) {
       print("Lỗi tạo Watermark: $e");
       return originalFile; // Nếu lỗi, dùng ảnh gốc
