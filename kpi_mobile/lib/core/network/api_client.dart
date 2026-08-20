@@ -38,9 +38,15 @@ class ApiClient {
   static Dio _buildDio() {
     final dioInstance = Dio(BaseOptions(
       baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-      sendTimeout: const Duration(seconds: 30),
+      // Bắt tay với máy chủ vốn nhanh; mất mạng thật là hỏng ngay ở bước này
+      // nên để ngắn để báo lỗi sớm cho người dùng.
+      connectTimeout: const Duration(seconds: 20),
+      // Nhưng bắt tay xong thì phải kiên nhẫn: máy chủ chạy gói Render miễn phí,
+      // tự ngủ khi vắng người dùng và mất 30 đến 60 giây mới dậy. Để 30 giây như
+      // trước thì lần gọi đầu trong ngày gần như luôn quá hạn, rồi bị hiểu nhầm
+      // thành mất mạng — nhất là khi còn phải tải kèm ảnh.
+      receiveTimeout: const Duration(seconds: 90),
+      sendTimeout: const Duration(seconds: 90),
     ));
 
     // ── NETWORK LOGGER (chỉ chạy khi Debug Build) ───────────────────────────

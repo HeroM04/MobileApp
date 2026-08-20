@@ -52,25 +52,40 @@ class ThucChienController extends GetxController {
   }
 
   // Khởi động Timer định kỳ kiểm tra mạng
+  bool _checkInFlight = false;
+
   void _startAutoSyncTimer() {
-    _syncTimer = Timer.periodic(const Duration(seconds: 15), (timer) async {
-      await checkNetworkAndSync();
+    // 60 giây một lượt. Trước để 15 giây, mà một lượt dò có thể kéo dài cả phút
+    // khi máy chủ đang ngủ dậy, nên các lượt chồng lên nhau.
+    _syncTimer = Timer.periodic(const Duration(seconds: 60), (timer) async {
+      if (_checkInFlight) return;
+      _checkInFlight = true;
+      try {
+        await checkNetworkAndSync();
+      } finally {
+        _checkInFlight = false;
+      }
     });
   }
 
-  // Kiểm tra trạng thái mạng thực tế bằng cách gọi nhanh lên server
+  /// Máy chủ chạy trên gói Render miễn phí nên tự ngủ khi không có ai dùng, lần
+  /// gọi đầu tiên phải chờ nó thức dậy — thường 30 đến 60 giây. Mọi mốc chờ ở
+  /// đây phải rộng hơn khoảng đó, nếu không máy sẽ tưởng là mất mạng.
+  static const Duration _wakeUpAllowance = Duration(seconds: 90);
+
+  /// Kiểm tra máy chủ có trả lời không. Chỉ dùng cho bộ đồng bộ nền, KHÔNG dùng
+  /// để chặn người dùng gửi báo cáo.
   Future<bool> _testServerConnection() async {
     if (ApiClient.isDebugMode) {
       return true;
     }
     try {
       final dio = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 8),
-        receiveTimeout: const Duration(seconds: 8),
+        connectTimeout: _wakeUpAllowance,
+        receiveTimeout: _wakeUpAllowance,
       ));
       // Dùng đúng endpoint /auth/ping đã được khai báo trong Backend (không cần token)
-      final response = await dio.get('${ApiClient.baseUrl}/auth/ping')
-          .timeout(const Duration(seconds: 8));
+      final response = await dio.get('${ApiClient.baseUrl}/auth/ping');
       // Bất kỳ phản hồi nào từ server (200, 401, 404...) = CÓ MẠNG
       return response.statusCode != null;
     } catch (e) {
@@ -82,6 +97,33 @@ class ThucChienController extends GetxController {
       print('[ThucChien] Ping thất bại: $e');
       return false;
     }
+  }
+
+  /// Có đúng là hỏng đường truyền không, hay máy chủ đã trả lời nhưng báo lỗi.
+  ///
+  /// Phân biệt hai loại này mới ra thông báo đúng: hỏng mạng thì lưu nháp gửi
+  /// lại sau, còn máy chủ từ chối thì nói thẳng lý do chứ đừng đổ cho mạng.
+  bool _isOfflineError(Object e) {
+    if (e is SocketException) return true;
+    if (e is DioException) {
+      if (e.response != null) return false; // máy chủ có trả lời
+      return e.type == DioExceptionType.connectionError
+          || e.type == DioExceptionType.connectionTimeout
+          || e.type == DioExceptionType.sendTimeout
+          || e.type == DioExceptionType.receiveTimeout;
+    }
+    return false;
+  }
+
+  /// Lấy câu giải thích của máy chủ, không có thì mô tả ngắn gọn lỗi.
+  String _describeError(Object e) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map && data['message'] != null) return data['message'].toString();
+      final code = e.response?.statusCode;
+      if (code != null) return 'Máy chủ báo lỗi $code';
+    }
+    return e.toString();
   }
 
   // Thực hiện kiểm tra và đồng bộ
@@ -176,25 +218,11 @@ class ThucChienController extends GetxController {
     required String content,
     required String imagePath,
   }) async {
-    final connected = await _testServerConnection();
-    hasConnection.value = connected;
-
-    if (!connected) {
-      // Lưu nháp nếu mất mạng, sẽ tự đồng bộ sau
-      offlineDrafts.add({
-        'name': name, 'phone': phone,
-        'project': project, 'content': content, 'image': imagePath,
-      });
-      Get.snackbar(
-        "📶 Đã lưu nháp",
-        "Không có kết nối. Báo cáo sẽ tự động gửi khi có mạng.",
-        backgroundColor: Colors.orange.shade800,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-      );
-      return;
-    }
-
+    // Không ping thử trước nữa. Trước đây có một lượt ping chờ tối đa 8 giây để
+    // quyết định còn mạng hay không; máy chủ Render vừa ngủ dậy mất tới cả phút
+    // nên lượt ping đó gần như luôn quá hạn, và báo cáo bị đẩy vào nháp kèm
+    // thông báo mất mạng dù máy vẫn đầy sóng. Nay gửi thẳng, hỏng thật thì mới
+    // rơi vào nhánh xử lý lỗi bên dưới.
     try {
       // Upload ảnh
       final uploadService = UploadService();
@@ -218,6 +246,7 @@ class ThucChienController extends GetxController {
       });
 
       kpiController.fetchKpiData();
+      hasConnection.value = true;
 
       // Thông báo nhỏ xác nhận hoàn tất (không block màn hình)
       Get.snackbar(
@@ -229,17 +258,44 @@ class ThucChienController extends GetxController {
       );
 
     } catch (e) {
-      // Nếu lỗi → lưu nháp tự động
-      offlineDrafts.add({
-        'name': name, 'phone': phone,
-        'project': project, 'content': content, 'image': imagePath,
-      });
+      print('[ThucChien] Gửi báo cáo thất bại: $e');
+
+      if (_isOfflineError(e)) {
+        // Hỏng đường truyền thật — giữ lại để gửi khi có mạng
+        hasConnection.value = false;
+        offlineDrafts.add({
+          'name': name, 'phone': phone,
+          'project': project, 'content': content, 'image': imagePath,
+        });
+        Get.snackbar(
+          "📶 Đã lưu nháp",
+          "Không gửi được do mạng. Báo cáo sẽ tự động gửi lại khi có kết nối.",
+          backgroundColor: Colors.orange.shade800,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+        );
+        return;
+      }
+
+      // Máy chủ có trả lời nhưng từ chối — nói đúng lý do, đừng đổ cho mạng.
+      // Lỗi phía máy chủ (5xx) thì giữ nháp vì gửi lại có thể thành công;
+      // lỗi do dữ liệu (4xx) thì gửi lại cũng vậy nên không giữ.
+      final status = e is DioException ? (e.response?.statusCode ?? 0) : 0;
+      final serverFault = status >= 500 || status == 0;
+      if (serverFault) {
+        offlineDrafts.add({
+          'name': name, 'phone': phone,
+          'project': project, 'content': content, 'image': imagePath,
+        });
+      }
       Get.snackbar(
-        "⚠️ Đã lưu nháp",
-        "Gặp lỗi kết nối. Báo cáo đã được lưu và sẽ tự đồng bộ sau.",
-        backgroundColor: Colors.orange.shade800,
+        serverFault ? "Máy chủ đang bận" : "Không gửi được báo cáo",
+        serverFault
+            ? "${_describeError(e)}. Đã lưu nháp, hệ thống sẽ thử gửi lại."
+            : _describeError(e),
+        backgroundColor: Colors.red.shade700,
         colorText: Colors.white,
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 5),
       );
     }
   }
