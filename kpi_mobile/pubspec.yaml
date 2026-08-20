@@ -17,9 +17,20 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
 # version: <tên phiên bản>+<số build>
-# Số build PHẢI tăng mỗi lần phát hành, nếu không Android sẽ từ chối cài đè
-# và TestFlight sẽ báo trùng bản build.
-version: 1.2.4+7
+#
+# GIỮ NGUYÊN TÊN PHIÊN BẢN TRONG SUỐT ĐỢT SỬA LỖI.
+#
+# Apple xét duyệt TestFlight theo TÊN phiên bản chứ không theo từng lần build.
+# Giữ nguyên tên và chỉ tăng số build thì bản mới vào thẳng nhánh đã duyệt,
+# không phải chờ Beta App Review lần nào nữa. Đổi tên là kích hoạt một lượt
+# duyệt mới, mất 1–2 ngày.
+#
+# Chỉ nâng tên khi phát hành chính thức cho toàn công ty (ví dụ lên 1.3.0).
+#
+# Số build ở đây không quan trọng: Codemagic tự đặt lại khi build
+# (Android + 10, iOS + 100 so với số lần build của dự án), nên luôn tăng dần
+# và không bao giờ trùng.
+version: 1.2.0+7
 
 environment:
   sdk: ^3.10.4
