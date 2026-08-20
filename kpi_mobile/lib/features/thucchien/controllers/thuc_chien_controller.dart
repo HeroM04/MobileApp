@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_error.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../home/controllers/kpi_controller.dart';
 import '../../../data/services/thuc_chien_service.dart';
@@ -99,32 +100,6 @@ class ThucChienController extends GetxController {
     }
   }
 
-  /// Có đúng là hỏng đường truyền không, hay máy chủ đã trả lời nhưng báo lỗi.
-  ///
-  /// Phân biệt hai loại này mới ra thông báo đúng: hỏng mạng thì lưu nháp gửi
-  /// lại sau, còn máy chủ từ chối thì nói thẳng lý do chứ đừng đổ cho mạng.
-  bool _isOfflineError(Object e) {
-    if (e is SocketException) return true;
-    if (e is DioException) {
-      if (e.response != null) return false; // máy chủ có trả lời
-      return e.type == DioExceptionType.connectionError
-          || e.type == DioExceptionType.connectionTimeout
-          || e.type == DioExceptionType.sendTimeout
-          || e.type == DioExceptionType.receiveTimeout;
-    }
-    return false;
-  }
-
-  /// Lấy câu giải thích của máy chủ, không có thì mô tả ngắn gọn lỗi.
-  String _describeError(Object e) {
-    if (e is DioException) {
-      final data = e.response?.data;
-      if (data is Map && data['message'] != null) return data['message'].toString();
-      final code = e.response?.statusCode;
-      if (code != null) return 'Máy chủ báo lỗi $code';
-    }
-    return e.toString();
-  }
 
   // Thực hiện kiểm tra và đồng bộ
   Future<void> checkNetworkAndSync() async {
@@ -259,43 +234,28 @@ class ThucChienController extends GetxController {
 
     } catch (e) {
       print('[ThucChien] Gửi báo cáo thất bại: $e');
+      final failure = describeApiFailure(e);
 
-      if (_isOfflineError(e)) {
-        // Hỏng đường truyền thật — giữ lại để gửi khi có mạng
-        hasConnection.value = false;
-        offlineDrafts.add({
-          'name': name, 'phone': phone,
-          'project': project, 'content': content, 'image': imagePath,
-        });
-        Get.snackbar(
-          "📶 Đã lưu nháp",
-          "Không gửi được do mạng. Báo cáo sẽ tự động gửi lại khi có kết nối.",
-          backgroundColor: Colors.orange.shade800,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 3),
-        );
-        return;
-      }
+      if (failure.kind == ApiFailureKind.network) hasConnection.value = false;
 
-      // Máy chủ có trả lời nhưng từ chối — nói đúng lý do, đừng đổ cho mạng.
-      // Lỗi phía máy chủ (5xx) thì giữ nháp vì gửi lại có thể thành công;
-      // lỗi do dữ liệu (4xx) thì gửi lại cũng vậy nên không giữ.
-      final status = e is DioException ? (e.response?.statusCode ?? 0) : 0;
-      final serverFault = status >= 500 || status == 0;
-      if (serverFault) {
+      // Lỗi mạng hoặc lỗi máy chủ thì giữ nháp vì gửi lại có thể thành công.
+      // Lỗi do dữ liệu nhập sai thì gửi lại cũng hỏng như vậy nên không giữ,
+      // báo thẳng để nhân viên sửa rồi gửi lại.
+      if (failure.worthRetrying) {
         offlineDrafts.add({
           'name': name, 'phone': phone,
           'project': project, 'content': content, 'image': imagePath,
         });
       }
+
       Get.snackbar(
-        serverFault ? "Máy chủ đang bận" : "Không gửi được báo cáo",
-        serverFault
-            ? "${_describeError(e)}. Đã lưu nháp, hệ thống sẽ thử gửi lại."
-            : _describeError(e),
-        backgroundColor: Colors.red.shade700,
+        failure.worthRetrying ? "${failure.title} — đã lưu nháp" : failure.title,
+        failure.worthRetrying
+            ? "${failure.message}\nBáo cáo đã được giữ lại và sẽ tự gửi lại."
+            : failure.message,
+        backgroundColor: failure.isUserFixable ? Colors.orange.shade800 : Colors.red.shade700,
         colorText: Colors.white,
-        duration: const Duration(seconds: 5),
+        duration: const Duration(seconds: 6),
       );
     }
   }

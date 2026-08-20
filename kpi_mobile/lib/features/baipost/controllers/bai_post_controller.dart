@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_error.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../../data/services/post_service.dart';
 import '../../home/controllers/kpi_controller.dart';
@@ -30,7 +31,13 @@ class BaiPostController extends GetxController {
     return [];
   }
 
-  Future<bool> submitPost({
+  /// Gửi bài lan tỏa lên máy chủ.
+  ///
+  /// Trả về null khi thành công, ngược lại là mô tả lỗi đã phân loại rõ hỏng ở
+  /// đâu. Trước đây hàm này chỉ trả về true/false rồi nuốt nguyên nhân vào một
+  /// dòng print, nên màn hình chỉ hiện được câu chung chung "không gửi được" —
+  /// nhân viên không biết mình nhập sai hay hệ thống hỏng.
+  Future<ApiFailure?> submitPost({
     required String platform,
     required String link,
     required String caption,
@@ -39,12 +46,21 @@ class BaiPostController extends GetxController {
   }) async {
     try {
       isLoading.value = true;
-      // Upload ảnh thật
+
+      // Upload ảnh chụp màn hình trước
       final uploadService = UploadService();
       String? realImageUrl;
       if (screenshotUrl.isNotEmpty) {
-        realImageUrl = await uploadService.uploadFile(File(screenshotUrl));
-        if (realImageUrl == null) throw "Không thể upload ảnh lên máy chủ";
+        try {
+          realImageUrl = await uploadService.uploadFile(File(screenshotUrl));
+        } catch (e) {
+          final f = describeApiFailure(e, action: 'tải ảnh');
+          return ApiFailure(f.kind, 'Không tải được ảnh lên', f.message);
+        }
+        if (realImageUrl == null) {
+          return const ApiFailure(ApiFailureKind.server, 'Không tải được ảnh lên',
+              'Máy chủ nhận ảnh nhưng không trả về đường dẫn. Đây là lỗi hệ thống, báo lại bộ phận kỹ thuật.');
+        }
       }
 
       final response = await _postService.submitPost({
@@ -57,12 +73,13 @@ class BaiPostController extends GetxController {
 
       if (response['status'] == 'SUCCESS') {
         kpiController.fetchKpiData(); // Sync backend KPI points
-        return true;
+        return null;
       }
-      return false;
+      return ApiFailure(ApiFailureKind.server, 'Không gửi được bài',
+          response['message']?.toString() ?? 'Máy chủ trả về kết quả không hợp lệ.');
     } catch (e) {
-      print('Error submitting post: $e');
-      return false;
+      print('Lỗi gửi bài lan tỏa: $e');
+      return describeApiFailure(e);
     } finally {
       isLoading.value = false;
     }

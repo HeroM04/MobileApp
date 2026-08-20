@@ -82,15 +82,15 @@ class _BaiPostViewState extends State<BaiPostView> {
     });
 
     if (_isValidPost) {
-      final success = await controller.submitPost(
+      final failure = await controller.submitPost(
         platform: _urlController.text.contains("facebook") ? "FACEBOOK" : "OTHER",
         contentType: _contentType,
         link: _urlController.text,
         caption: _captionController.text,
-        screenshotUrl: _screenshot!.path, // Replace with real URL upload later
+        screenshotUrl: _screenshot!.path,
       );
 
-      if (success) {
+      if (failure == null) {
         Get.defaultDialog(
           title: "Xác thực thành công",
           middleText: "Hệ thống đã nhận diện bài viết hợp lệ và cập nhật điểm KPI truyền thông của bạn!",
@@ -106,15 +106,27 @@ class _BaiPostViewState extends State<BaiPostView> {
           _isValidPost = false;
         });
       } else {
-        Get.snackbar("Lỗi", "Không thể gửi bài viết. Vui lòng thử lại sau.");
+        // Nói rõ hỏng ở đâu và ai sửa được, thay cho câu chung chung trước đây
+        Get.snackbar(
+          failure.title,
+          failure.isUserFixable
+              ? failure.message
+              : "${failure.message}\n(Lỗi hệ thống — nếu lặp lại, báo bộ phận kỹ thuật)",
+          backgroundColor: failure.isUserFixable ? Colors.orange.shade800 : Colors.red.shade700,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 6),
+          isDismissible: true,
+        );
       }
     } else {
+      final thieu = _requiredHashtags.where((t) => !_foundHashtags.contains(t)).join('  ');
       Get.snackbar(
-        "Xác thực thất bại",
-        "Bài viết thiếu các Hashtag bắt buộc (Cần tối thiểu #trilongland và 1 hashtag phụ #bds hoặc #kpi)",
-        backgroundColor: Colors.redAccent,
+        "Thiếu hashtag bắt buộc",
+        "Nội dung caption phải có #trilongland và ít nhất một trong #bds hoặc #kpi.\n"
+        "Đang thiếu: $thieu",
+        backgroundColor: Colors.orange.shade800,
         colorText: Colors.white,
-        duration: const Duration(seconds: 4),
+        duration: const Duration(seconds: 6),
       );
     }
   }

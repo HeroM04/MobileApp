@@ -41,9 +41,19 @@ class MyApp extends StatelessWidget {
           secondary: const Color(0xFFD4AF37),
         ),
       ),
+      // Bấm ra chỗ trống bất kỳ là ẩn bàn phím. Đặt ở đây một lần cho cả app,
+      // thay vì phải bọc lại ở từng màn hình có ô nhập.
+      builder: (context, child) => GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () {
+          final focus = FocusManager.instance.primaryFocus;
+          if (focus != null && focus.hasFocus) focus.unfocus();
+        },
+        child: child,
+      ),
       // Lắng nghe thay đổi của isLoggedIn để vẽ giao diện phù hợp
-      home: Obx(() => authController.isLoggedIn.value 
-          ? ShellView() 
+      home: Obx(() => authController.isLoggedIn.value
+          ? ShellView()
           : const LoginView()),
     );
   }
