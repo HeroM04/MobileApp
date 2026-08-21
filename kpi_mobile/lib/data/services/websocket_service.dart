@@ -5,6 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:get/get.dart';
 import '../../features/home/controllers/kpi_controller.dart';
+import '../../features/shell/controllers/shell_controller.dart';
+import '../../features/thongbao/controllers/thong_bao_controller.dart';
 import '../../core/constants/api_constants.dart';
 import 'dart:convert';
 import '../../core/widgets/thong_bao.dart';
@@ -87,37 +89,14 @@ class WebSocketService {
                 }
                 kpiController.kpiWeeklyPoints.value = rawWeekly;
 
-                // Gộp mọi khoản vừa được cộng vào MỘT thông báo.
-                //
-                // Trước đây mỗi nhóm điểm bắn ra một thông báo riêng. Khi Admin
-                // duyệt liền mấy mục thì bốn thông báo nối đuôi nhau, mỗi cái
-                // phải chờ cái trước biến mất — người dùng thấy thông báo cứ trôi
-                // xuống chậm rãi mãi không hết.
                 if (oldTotal > 0) { // bỏ qua lần nạp dữ liệu đầu tiên
-                  final khoan = <String>[];
-                  if (newAttendance > oldAttendance) {
-                    khoan.add('Chấm công / Đào tạo +${newAttendance - oldAttendance}đ');
-                  }
-                  if (newMeeting > oldMeeting) {
-                    khoan.add('Thực chiến / Đào tạo 1-1 +${newMeeting - oldMeeting}đ');
-                  }
-                  if (newPost > oldPost) {
-                    khoan.add('Lan tỏa +${newPost - oldPost}đ');
-                  }
-                  if (newDeal > oldDeal) {
-                    khoan.add('Chốt căn +${newDeal - oldDeal}đ');
-                  }
-
-                  if (khoan.isNotEmpty) {
-                    final coChotCan = newDeal > oldDeal;
-                    snack(
-                      coChotCan ? 'Chúc mừng, bạn vừa chốt căn!' : 'Bạn vừa được cộng điểm KPI',
-                      khoan.join('\n'),
-                      backgroundColor: coChotCan ? const Color(0xFFD4AF37) : const Color(0xFF4CAF50),
-                      colorText: coChotCan ? const Color(0xFF0F2C59) : const Color(0xFFFFFFFF),
-                      duration: const Duration(seconds: 4),
-                    );
-                  }
+                  _baoDiemDoi(
+                    payload['change'] as Map<String, dynamic>?,
+                    congAttendance: newAttendance - oldAttendance,
+                    congMeeting: newMeeting - oldMeeting,
+                    congPost: newPost - oldPost,
+                    congDeal: newDeal - oldDeal,
+                  );
                 }
               }
             }
@@ -128,6 +107,82 @@ class WebSocketService {
       },
     );
   }
+
+  /// Báo cho nhân sự biết điểm vừa đổi, và cộng vào huy hiệu Thông báo.
+  ///
+  /// Máy chủ gửi kèm khối `change` mô tả đúng khoản điểm vừa phát sinh, nên
+  /// thông báo nói thẳng được lý do ("Admin duyệt: Video xây kênh trên
+  /// Facebook") thay vì chỉ nêu con số. Bản ứng dụng cũ chạy với máy chủ mới
+  /// hoặc ngược lại thì rơi về cách cũ là so sánh các tổng.
+  void _baoDiemDoi(
+    Map<String, dynamic>? change, {
+    required int congAttendance,
+    required int congMeeting,
+    required int congPost,
+    required int congDeal,
+  }) {
+    // Huy hiệu đỏ trên chuông Thông báo.
+    if (Get.isRegistered<ShellController>()) {
+      Get.find<ShellController>().soThongBaoMoi.value++;
+    }
+    // Đang mở màn hình Thông báo thì nạp lại cho thấy khoản mới ngay.
+    if (Get.isRegistered<ThongBaoController>()) {
+      Get.find<ThongBaoController>().tai();
+    }
+
+    final int diem = (change?['effectivePoints'] as num?)?.toInt() ??
+        (congAttendance + congMeeting + congPost + congDeal);
+    final String? lyDo = change?['reason']?.toString();
+    final bool coChotCan =
+        congDeal > 0 || (change?['category']?.toString() == 'deal' && diem > 0);
+
+    // Chạm trần: điểm không vào được nhưng vẫn phải nói cho người ta biết, nếu
+    // không họ tưởng hệ thống nuốt mất công sức của mình.
+    final int quyDinh = (change?['points'] as num?)?.toInt() ?? diem;
+    if (diem == 0) {
+      if (quyDinh > 0 && lyDo != null) {
+        snack(
+          'Nhóm điểm này đã đầy',
+          '$lyDo\nKhoản ${quyDinh}đ không cộng thêm được vì nhóm đã đạt tối đa của tuần.',
+          backgroundColor: const Color(0xFFF59E0B),
+          colorText: const Color(0xFF3B2600),
+          duration: const Duration(seconds: 4),
+        );
+      }
+      return;
+    }
+
+    final bool duong = diem > 0;
+    final String tieuDe = coChotCan
+        ? 'Chúc mừng, bạn vừa chốt căn!'
+        : (duong ? 'Bạn vừa được cộng ${diem}đ KPI' : 'Bạn vừa bị trừ ${-diem}đ KPI');
+
+    // Không có lý do (máy chủ bản cũ) thì liệt kê theo nhóm như trước.
+    String noiDung;
+    if (lyDo != null && lyDo.isNotEmpty) {
+      noiDung = lyDo;
+    } else {
+      final khoan = <String>[];
+      if (congAttendance != 0) khoan.add('Chuyên cần & Đào tạo ${_dau(congAttendance)}đ');
+      if (congMeeting != 0) khoan.add('Thực chiến ${_dau(congMeeting)}đ');
+      if (congPost != 0) khoan.add('Lan tỏa ${_dau(congPost)}đ');
+      if (congDeal != 0) khoan.add('Chốt căn ${_dau(congDeal)}đ');
+      if (khoan.isEmpty) return;
+      noiDung = khoan.join('\n');
+    }
+
+    snack(
+      tieuDe,
+      noiDung,
+      backgroundColor: coChotCan
+          ? const Color(0xFFD4AF37)
+          : (duong ? const Color(0xFF16A34A) : const Color(0xFFDC2626)),
+      colorText: coChotCan ? const Color(0xFF0F2C59) : const Color(0xFFFFFFFF),
+      duration: const Duration(seconds: 4),
+    );
+  }
+
+  String _dau(int n) => n > 0 ? '+$n' : '$n';
 
   void disconnect() {
     stompClient?.deactivate();

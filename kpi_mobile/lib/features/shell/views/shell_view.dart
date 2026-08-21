@@ -9,6 +9,7 @@ import '../../daotao/views/dao_tao_view.dart';
 import '../../phanhoi/views/phan_hoi_view.dart';
 import '../../chotcan/views/chot_can_view.dart';
 import '../../gieohat/views/gieo_hat_view.dart';
+import '../../thongbao/views/thong_bao_view.dart';
 import '../../profile/views/profile_view.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../../core/widgets/logo_widget.dart';
@@ -38,6 +39,8 @@ class ShellView extends StatelessWidget {
       case 7:
         return const ChotCanView();
       case 8:
+        return const ThongBaoView();
+      case 9:
         return const ProfileView();
       default:
         return HomeView();
@@ -63,6 +66,8 @@ class ShellView extends StatelessWidget {
       case 7:
         return Icons.domain_verification_outlined;
       case 8:
+        return Icons.notifications_none_rounded;
+      case 9:
         return Icons.person_outline;
       default:
         return Icons.circle_outlined;
@@ -91,6 +96,7 @@ class ShellView extends StatelessWidget {
           );
         }),
         actions: [
+          _nutChuong(),
           // Hiển thị logo thương hiệu nhỏ gọn góc phải AppBar
           const Padding(
             padding: EdgeInsets.only(right: 16.0),
@@ -210,6 +216,52 @@ class ShellView extends StatelessWidget {
       ),
       body: Obx(() => _getBody(shellController.selectedIndex.value)),
     );
+  }
+
+  /// Chuông Thông báo kèm huy hiệu đỏ, vào được từ mọi màn hình.
+  Widget _nutChuong() {
+    return Obx(() {
+      final soMoi = shellController.soThongBaoMoi.value;
+      final dangMo = shellController.selectedIndex.value == ShellController.mucThongBao;
+
+      return Stack(
+        alignment: Alignment.center,
+        children: [
+          IconButton(
+            onPressed: () => shellController.changeMenuIndex(ShellController.mucThongBao),
+            tooltip: 'Thông báo điểm KPI',
+            icon: Icon(
+              dangMo ? Icons.notifications_rounded : Icons.notifications_none_rounded,
+              color: dangMo ? const Color(0xFFD4AF37) : const Color(0xFF0F2C59),
+            ),
+          ),
+          if (soMoi > 0)
+            Positioned(
+              top: 8,
+              right: 6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                constraints: const BoxConstraints(minWidth: 17),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDC2626),
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+                child: Text(
+                  soMoi > 99 ? '99+' : '$soMoi',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+    });
   }
 
   Widget _buildDrawerHeader() {

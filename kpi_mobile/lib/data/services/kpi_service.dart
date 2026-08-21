@@ -20,4 +20,26 @@ class KpiService {
     });
     return response.data;
   }
+
+  // ── Nhật ký điểm KPI (màn hình Thông báo) ────────────────────────────────
+
+  /// Nhật ký một kỳ. [loai] là 'week' hoặc 'month'; [lui] 0 là kỳ hiện tại,
+  /// 1 là kỳ liền trước…
+  Future<Map<String, dynamic>> layNhatKy({String loai = 'week', int lui = 0}) async {
+    final response = await ApiClient.dio.get('/kpi-ledger/my', queryParameters: {
+      'type': loai,
+      'offset': lui,
+    });
+    return response.data;
+  }
+
+  /// Số khoản điểm mới kể từ lần mở màn hình Thông báo gần nhất.
+  Future<int> demChuaDoc() async {
+    final response = await ApiClient.dio.get('/kpi-ledger/my/unread');
+    return (response.data?['data']?['unread'] as num?)?.toInt() ?? 0;
+  }
+
+  Future<void> danhDauDaXem() async {
+    await ApiClient.dio.post('/kpi-ledger/my/seen');
+  }
 }
