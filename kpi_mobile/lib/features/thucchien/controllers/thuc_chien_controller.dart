@@ -274,138 +274,80 @@ class ThucChienController extends GetxController {
     }
   }
 
-  // Gửi báo cáo gặp mặt
-  Future<void> submitMeeting({
-    required String name,
-    required String phone,
-    required String project,
-    required String content,
-    required String imagePath,
-  }) async {
-    isLoading.value = true;
-
-    final connected = await _testServerConnection();
-    hasConnection.value = connected;
-
-    if (!connected) {
-      // Mất kết nối -> Tự động lưu nháp
-      offlineDrafts.add({
-        'name': name,
-        'phone': phone,
-        'project': project,
-        'content': content,
-        'image': imagePath,
-      });
-
-      Get.snackbar(
-        "Mất kết nối",
-        "Mạng yếu hoặc không có kết nối. Đã tự động lưu nháp cuộc gặp. Hệ thống sẽ tự động đồng bộ khi có mạng trở lại.",
-        backgroundColor: Colors.orange.shade800,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 4),
-      );
-      isLoading.value = false;
-      return;
-    }
-
-    try {
-      // Upload ảnh thật
-      final uploadService = UploadService();
-      String? realImageUrl;
-      if (imagePath.isNotEmpty) {
-        realImageUrl = await uploadService.uploadFile(File(imagePath));
-        if (realImageUrl == null) throw "Không thể upload ảnh lên máy chủ";
-      }
-
-      // Gọi API gửi cuộc gặp lên backend thực tế
-      final thucChienService = ThucChienService();
-      await thucChienService.submitBattle({
-        'customerName': name,
-        'customerPhone': phone,
-        'project': project,
-        'content': content,
-        'photoUrl': realImageUrl ?? "", 
-      });
-
-      kpiController.fetchKpiData(); // Refresh KPI data to sync with backend
-
-      Get.defaultDialog(
-        title: "Thành công",
-        middleText: "Đã gửi báo cáo gặp khách hàng thành công chờ phê duyệt.",
-        textConfirm: "Đồng ý",
-        confirmTextColor: Colors.white,
-        buttonColor: const Color(0xFF0F2C59),
-        onConfirm: () => Get.back(),
-      );
-
-    } catch (e) {
-      // Nếu gọi API bị lỗi do kết nối mạng đột ngột
-      offlineDrafts.add({
-        'name': name,
-        'phone': phone,
-        'project': project,
-        'content': content,
-        'image': imagePath,
-      });
-
-      Get.snackbar(
-        "Lỗi kết nối",
-        "Có lỗi xảy ra khi kết nối máy chủ. Đã tự động lưu bản nháp để đồng bộ sau.",
-        backgroundColor: Colors.orange.shade800,
-        colorText: Colors.white,
-      );
-    } finally {
-      isLoading.value = false;
-    }
-  }
 
   // Tự động đồng bộ toàn bộ bản nháp lên server
   Future<void> autoSyncDrafts() async {
     isSyncing.value = true;
-    final List<Map<String, String>> draftsToSync = List.from(offlineDrafts);
-    int successCount = 0;
+    final draftsToSync = List<Map<String, String>>.from(offlineDrafts);
+    final daGui = <Map<String, String>>[];
     final thucChienService = ThucChienService();
 
     for (var draft in draftsToSync) {
       try {
-        // Upload ảnh thật trước khi sync
-        final uploadService = UploadService();
+        // Tải ảnh kèm theo nếu tệp còn nằm trên máy. Ảnh chụp lưu ở thư mục tạm,
+        // máy dọn dẹp hoặc khởi động lại là mất; khi đó vẫn gửi báo cáo nhưng
+        // không kèm ảnh, còn hơn để bản nháp kẹt lại vĩnh viễn.
         String? realImageUrl;
-        if (draft['image'] != null && draft['image']!.isNotEmpty) {
-           realImageUrl = await uploadService.uploadFile(File(draft['image']!));
+        final duongDanAnh = draft['image'];
+        if (duongDanAnh != null && duongDanAnh.isNotEmpty && await File(duongDanAnh).exists()) {
+          try {
+            realImageUrl = await UploadService().uploadFile(File(duongDanAnh));
+          } catch (e) {
+            print('Không tải được ảnh của bản nháp, gửi báo cáo không kèm ảnh: $e');
+          }
         }
-        
+
         await thucChienService.submitBattle({
           'customerName': draft['name'],
           'customerPhone': draft['phone'],
           'project': draft['project'],
           'content': draft['content'],
-          'photoUrl': realImageUrl ?? "", 
+          'photoUrl': realImageUrl ?? "",
         });
-        
-        successCount++;
+
+        daGui.add(draft);
       } catch (e) {
         print("Lỗi đồng bộ bản nháp: $e");
-        // Nếu lỗi tiếp tục thì giữ lại để thử đồng bộ lần sau
+        // Giữ lại để thử gửi lần sau
       }
     }
 
-    if (successCount > 0) {
-      kpiController.fetchKpiData(); // Refresh KPI data
+    // Chỉ xoá đúng những bản đã gửi được.
+    //
+    // Trước đây dùng removeRange(0, số_bản_thành_công) — xoá mấy bản ĐẦU danh
+    // sách chứ không phải mấy bản thật sự gửi được. Nếu bản thứ nhất hỏng còn
+    // bản thứ hai gửi xong thì nó xoá mất bản hỏng (mất báo cáo) và giữ lại bản
+    // đã gửi (lần sau gửi lại lần nữa, thành hai bản ghi trùng).
+    for (final d in daGui) {
+      offlineDrafts.remove(d);
     }
 
-    // Xoá các bản nháp đã đồng bộ thành công
-    offlineDrafts.removeRange(0, successCount);
-    isSyncing.value = false;
-
-    if (successCount > 0) {
+    if (daGui.isNotEmpty) {
+      kpiController.fetchKpiData();
       Get.snackbar(
         "Tự động đồng bộ",
-        "Đã tự động đồng bộ thành công $successCount báo cáo thực chiến ngoại tuyến!",
+        "Đã gửi được ${daGui.length} báo cáo thực chiến đang chờ.",
         backgroundColor: Colors.green.shade800,
         colorText: Colors.white,
         duration: const Duration(seconds: 4),
       );
     }
+    isSyncing.value = false;
+  }
+
+  /// Xoá toàn bộ bản nháp đang treo.
+  ///
+  /// Cần có lối thoát cho người dùng: nếu một bản nháp không thể gửi được nữa
+  /// (ví dụ dữ liệu bị máy chủ từ chối), nó sẽ nằm lại mãi và dải báo "Đang lưu
+  /// ngoại tuyến" hiện hoài dù mọi thứ khác vẫn bình thường.
+  void xoaTatCaNhap() {
+    final n = offlineDrafts.length;
+    offlineDrafts.clear();
+    Get.snackbar(
+      "Đã xoá bản nháp",
+      "Đã bỏ $n báo cáo đang chờ gửi.",
+      backgroundColor: Colors.grey.shade800,
+      colorText: Colors.white,
+    );
   }
 }

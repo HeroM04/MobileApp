@@ -390,6 +390,46 @@ class _ThucChienViewState extends State<ThucChienView> {
                           strokeWidth: 2,
                           valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
                         ),
+                      )
+                    else
+                      // Lối thoát khi một bản nháp không thể gửi được nữa: không
+                      // có nút này thì dải cảnh báo nằm lại mãi, người dùng tưởng
+                      // app đang hỏng dù mọi thứ khác vẫn bình thường.
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextButton(
+                            onPressed: controller.autoSyncDrafts,
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              minimumSize: const Size(0, 32),
+                            ),
+                            child: Text('Gửi lại',
+                                style: TextStyle(fontSize: 12, color: Colors.orange.shade900)),
+                          ),
+                          TextButton(
+                            onPressed: () => Get.defaultDialog(
+                              title: 'Bỏ báo cáo đang chờ?',
+                              middleText:
+                                  'Xoá ${controller.offlineDrafts.length} báo cáo chưa gửi được. '
+                                  'Nội dung sẽ mất, bạn phải nhập lại nếu vẫn cần gửi.',
+                              textConfirm: 'Xoá',
+                              textCancel: 'Giữ lại',
+                              confirmTextColor: Colors.white,
+                              buttonColor: Colors.red.shade700,
+                              onConfirm: () {
+                                Get.back();
+                                controller.xoaTatCaNhap();
+                              },
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              minimumSize: const Size(0, 32),
+                            ),
+                            child: const Text('Bỏ',
+                                style: TextStyle(fontSize: 12, color: Colors.redAccent)),
+                          ),
+                        ],
                       ),
                   ],
                 ),
