@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/auth_controller.dart';
 import '../../../core/widgets/logo_widget.dart';
+import '../../../core/widgets/thong_bao.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -365,7 +366,7 @@ class _LoginViewState extends State<LoginView> {
           _phoneController.text = phone;
           _passwordController.text = "123456";
         });
-        Get.snackbar(
+        snack(
           "Chọn tài khoản",
           "Đã điền tài khoản $label ($phone)",
           snackPosition: SnackPosition.BOTTOM,

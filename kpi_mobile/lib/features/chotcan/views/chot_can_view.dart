@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/chot_can_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
+import '../../../core/widgets/thong_bao.dart';
 
 class ChotCanView extends StatefulWidget {
   const ChotCanView({super.key});
@@ -96,7 +97,7 @@ class _ChotCanViewState extends State<ChotCanView> with SingleTickerProviderStat
     );
 
     if (success) {
-      Get.snackbar(
+      snack(
         "Thành công",
         "Hồ sơ giao dịch đã gửi lên Admin phê duyệt thành công.",
         backgroundColor: Colors.green,
@@ -109,7 +110,7 @@ class _ChotCanViewState extends State<ChotCanView> with SingleTickerProviderStat
       _unitController.clear();
       _valueController.clear();
     } else {
-      Get.snackbar("Lỗi", "Không thể gửi hồ sơ, vui lòng thử lại!");
+      snack("Lỗi", "Không thể gửi hồ sơ, vui lòng thử lại!");
     }
   }
 

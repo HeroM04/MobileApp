@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../controllers/training_controller.dart';
 import '../../../data/services/upload_service.dart';
+import '../../../core/widgets/thong_bao.dart';
 
 class DaoTao1On1View extends StatefulWidget {
   @override
@@ -98,7 +99,7 @@ class _DaoTao1On1ViewState extends State<DaoTao1On1View> {
 
   Future<void> _submit() async {
     if (_contentController.text.trim().isEmpty) {
-      Get.snackbar('Lỗi', 'Vui lòng nhập nội dung đào tạo 1-1', backgroundColor: Colors.red, colorText: Colors.white);
+      snack('Lỗi', 'Vui lòng nhập nội dung đào tạo 1-1', backgroundColor: Colors.red, colorText: Colors.white);
       return;
     }
 
@@ -116,12 +117,12 @@ class _DaoTao1On1ViewState extends State<DaoTao1On1View> {
       bool success = await controller.submitOneOnOne(_contentController.text.trim(), photoUrl);
       if (success) {
         Get.back();
-        Get.snackbar('Thành công', 'Đã nộp báo cáo và cộng 5 điểm KPI', backgroundColor: Colors.green, colorText: Colors.white);
+        snack('Thành công', 'Đã nộp báo cáo và cộng 5 điểm KPI', backgroundColor: Colors.green, colorText: Colors.white);
       } else {
-        Get.snackbar('Thất bại', 'Có lỗi xảy ra', backgroundColor: Colors.red, colorText: Colors.white);
+        snack('Thất bại', 'Có lỗi xảy ra', backgroundColor: Colors.red, colorText: Colors.white);
       }
     } catch (e) {
-      Get.snackbar('Lỗi', 'Không thể nộp báo cáo: $e', backgroundColor: Colors.red, colorText: Colors.white);
+      snack('Lỗi', 'Không thể nộp báo cáo: $e', backgroundColor: Colors.red, colorText: Colors.white);
     } finally {
       setState(() {
         _isSubmitting = false;

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../controllers/training_controller.dart';
 import '../../auth/controllers/auth_controller.dart';
+import '../../../core/widgets/thong_bao.dart';
 
 /// Màn hình CHI TIẾT BUỔI ĐÀO TẠO ĐÃ KẾT THÚC
 /// Hiển thị thông tin tóm tắt và nút "Xem Video Bài Giảng" mở YouTube App / Browser.
@@ -89,7 +90,7 @@ class _TrainingArchiveDetailViewState extends State<TrainingArchiveDetailView> {
   }
 
   void _showError(String message) {
-    Get.snackbar(
+    snack(
       'Lỗi',
       message,
       backgroundColor: const Color(0xFFDC2626),
@@ -190,7 +191,7 @@ class _TrainingArchiveDetailViewState extends State<TrainingArchiveDetailView> {
               final success =
                   await controller.updateVideoUrl(widget.room.id, url);
               if (success) {
-                Get.snackbar(
+                snack(
                   'Thành công',
                   'Đã cập nhật link video bài giảng!',
                   backgroundColor: Colors.green,
@@ -505,7 +506,7 @@ class _TrainingArchiveDetailViewState extends State<TrainingArchiveDetailView> {
                   GestureDetector(
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: videoUrl));
-                      Get.snackbar(
+                      snack(
                         'Đã sao chép',
                         'Link video đã được sao chép vào clipboard.',
                         backgroundColor: Colors.green,

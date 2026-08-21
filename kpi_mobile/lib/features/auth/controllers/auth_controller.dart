@@ -7,6 +7,7 @@ import '../../../core/network/api_client.dart';
 import '../../home/controllers/kpi_controller.dart';
 import '../../shell/views/shell_view.dart';
 import '../views/login_view.dart';
+import '../../../core/widgets/thong_bao.dart';
 
 class AuthController extends GetxController {
   var isLoggedIn = false.obs;
@@ -83,7 +84,7 @@ class AuthController extends GetxController {
   // 2. Hàm đăng nhập (Login)
   Future<void> login(String phone, String password) async {
     if (phone.isEmpty || password.isEmpty) {
-      Get.snackbar("Lỗi", "Số điện thoại và mật khẩu không được trống!");
+      snack("Lỗi", "Số điện thoại và mật khẩu không được trống!");
       return;
     }
 
@@ -149,7 +150,7 @@ class AuthController extends GetxController {
         currentUser.value = mockUser;
         isLoggedIn.value = true;
 
-        Get.snackbar("Thành công", "Đăng nhập thử nghiệm thành công!");
+        snack("Thành công", "Đăng nhập thử nghiệm thành công!");
         Get.offAll(() => ShellView());
       } else {
         // --- CHẾ ĐỘ THỰC TẾ (CONNECT BACKEND) ---
@@ -202,11 +203,11 @@ class AuthController extends GetxController {
           };
           isLoggedIn.value = true;
 
-          Get.snackbar("Thành công", "Đăng nhập hệ thống thành công!");
+          snack("Thành công", "Đăng nhập hệ thống thành công!");
           Get.offAll(() => ShellView());
         } else {
           final errMsg = response.data['message'] ?? "Sai mật khẩu hoặc tài khoản bị khóa";
-          Get.snackbar("Lỗi đăng nhập", errMsg);
+          snack("Lỗi đăng nhập", errMsg);
         }
       }
     } catch (e) {
@@ -221,7 +222,7 @@ class AuthController extends GetxController {
           }
         }
       }
-      Get.snackbar("Lỗi kết nối", errorMessage);
+      snack("Lỗi kết nối", errorMessage);
     } finally {
       isLoading.value = false;
     }
@@ -258,21 +259,21 @@ class AuthController extends GetxController {
 
       Get.offAll(() => LoginView());
       // Hiển thị thông báo sau khi đã chuyển trang để tránh lỗi rebuild widget cũ
-      Get.snackbar("Thông báo", "Đã đăng xuất tài khoản!");
+      snack("Thông báo", "Đã đăng xuất tài khoản!");
     }
   }
   // 4. Hàm đổi mật khẩu (Change Password)
   Future<void> changePassword(String oldPassword, String newPassword, String confirmPassword) async {
     if (oldPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
-      Get.snackbar("Lỗi", "Vui lòng nhập đầy đủ các trường thông tin!");
+      snack("Lỗi", "Vui lòng nhập đầy đủ các trường thông tin!");
       return;
     }
     if (newPassword != confirmPassword) {
-      Get.snackbar("Lỗi", "Mật khẩu xác nhận không khớp!");
+      snack("Lỗi", "Mật khẩu xác nhận không khớp!");
       return;
     }
     if (newPassword.length < 6) {
-      Get.snackbar("Lỗi", "Mật khẩu mới phải có ít nhất 6 ký tự!");
+      snack("Lỗi", "Mật khẩu mới phải có ít nhất 6 ký tự!");
       return;
     }
 
@@ -280,7 +281,7 @@ class AuthController extends GetxController {
       isLoading.value = true;
       if (ApiClient.isDebugMode) {
         await Future.delayed(const Duration(seconds: 1));
-        Get.snackbar("Thành công", "Đổi mật khẩu thành công (Mock)!");
+        snack("Thành công", "Đổi mật khẩu thành công (Mock)!");
         Get.back(); // Đóng dialog
       } else {
         final response = await ApiClient.dio.post('/auth/change-password', data: {
@@ -304,7 +305,7 @@ class AuthController extends GetxController {
           );
         } else {
           final errMsg = response.data['message'] ?? "Có lỗi xảy ra khi đổi mật khẩu";
-          Get.snackbar("Lỗi", errMsg);
+          snack("Lỗi", errMsg);
         }
       }
     } catch (e) {
@@ -319,7 +320,7 @@ class AuthController extends GetxController {
           }
         }
       }
-      Get.snackbar("Lỗi", errorMessage);
+      snack("Lỗi", errorMessage);
     } finally {
       isLoading.value = false;
     }

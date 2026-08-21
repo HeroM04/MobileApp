@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import '../controllers/referral_controller.dart';
+import '../../../core/widgets/thong_bao.dart';
 
 /// Màn hình "Gieo hạt" — nhân sự giới thiệu người mới vào công ty.
 ///
@@ -48,7 +49,7 @@ class _GieoHatViewState extends State<GieoHatView> {
       _nameController.clear();
       _phoneController.clear();
       _noteController.clear();
-      Get.snackbar(
+      snack(
         'Đã gửi đơn giới thiệu',
         'Admin sẽ xét duyệt và mở tài khoản cho người bạn giới thiệu.',
         backgroundColor: Colors.green.shade600,
@@ -56,7 +57,7 @@ class _GieoHatViewState extends State<GieoHatView> {
         duration: const Duration(seconds: 3),
       );
     } else {
-      Get.snackbar('Không gửi được', err,
+      snack('Không gửi được', err,
           backgroundColor: Colors.redAccent, colorText: Colors.white);
     }
   }
@@ -351,7 +352,7 @@ class _GieoHatViewState extends State<GieoHatView> {
                   onPressed: () async {
                     final err = await controller.cancel(r['id'] as int);
                     if (err != null) {
-                      Get.snackbar('Không rút được đơn', err,
+                      snack('Không rút được đơn', err,
                           backgroundColor: Colors.redAccent, colorText: Colors.white);
                     }
                   },

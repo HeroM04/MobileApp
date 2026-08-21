@@ -11,6 +11,7 @@ import '../../auth/controllers/auth_controller.dart';
 import '../../home/controllers/kpi_controller.dart';
 import '../../../data/services/thuc_chien_service.dart';
 import '../../../data/services/upload_service.dart';
+import '../../../core/widgets/thong_bao.dart';
 
 class ThucChienController extends GetxController {
   final AuthController authController = Get.find<AuthController>();
@@ -179,7 +180,7 @@ class ThucChienController extends GetxController {
 
     // BƯỚC 1: Phản hồi ngay cho người dùng (< 200ms)
     onSuccess();
-    Get.snackbar(
+    snack(
       "Đang ghi nhận...",
       "Báo cáo đang được xử lý và gửi lên hệ thống...",
       backgroundColor: const Color(0xFF0F2C59),
@@ -238,7 +239,7 @@ class ThucChienController extends GetxController {
       hasConnection.value = true;
 
       // Thông báo nhỏ xác nhận hoàn tất (không block màn hình)
-      Get.snackbar(
+      snack(
         "☁️ Đồng bộ thành công",
         "Báo cáo gặp khách hàng đã được lưu vào hệ thống!",
         backgroundColor: Colors.green.shade700,
@@ -262,14 +263,14 @@ class ThucChienController extends GetxController {
         });
       }
 
-      Get.snackbar(
+      snack(
         failure.worthRetrying ? "${failure.title} — đã lưu nháp" : failure.title,
         failure.worthRetrying
             ? "${failure.message}\nBáo cáo đã được giữ lại và sẽ tự gửi lại."
             : failure.message,
         backgroundColor: failure.isUserFixable ? Colors.orange.shade800 : Colors.red.shade700,
         colorText: Colors.white,
-        duration: const Duration(seconds: 6),
+        duration: const Duration(seconds: 4),
       );
     }
   }
@@ -324,7 +325,7 @@ class ThucChienController extends GetxController {
 
     if (daGui.isNotEmpty) {
       kpiController.fetchKpiData();
-      Get.snackbar(
+      snack(
         "Tự động đồng bộ",
         "Đã gửi được ${daGui.length} báo cáo thực chiến đang chờ.",
         backgroundColor: Colors.green.shade800,
@@ -343,7 +344,7 @@ class ThucChienController extends GetxController {
   void xoaTatCaNhap() {
     final n = offlineDrafts.length;
     offlineDrafts.clear();
-    Get.snackbar(
+    snack(
       "Đã xoá bản nháp",
       "Đã bỏ $n báo cáo đang chờ gửi.",
       backgroundColor: Colors.grey.shade800,

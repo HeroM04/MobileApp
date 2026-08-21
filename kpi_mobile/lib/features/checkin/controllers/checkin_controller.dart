@@ -14,6 +14,7 @@ import '../../auth/controllers/auth_controller.dart';
 import '../../home/controllers/kpi_controller.dart';
 import '../../../core/network/api_client.dart';
 import 'package:dio/dio.dart';
+import '../../../core/widgets/thong_bao.dart';
 
 class CheckinController extends GetxController {
   var isLoading = false.obs;
@@ -76,7 +77,7 @@ class CheckinController extends GetxController {
         final faceResult = await _detectFace(imageFile);
         if (!faceResult.hasFace) {
           isLoading.value = false;
-          Get.snackbar("Lỗi xác thực", "Không tìm thấy khuôn mặt! Vui lòng chụp rõ mặt bạn.",
+          snack("Lỗi xác thực", "Không tìm thấy khuôn mặt! Vui lòng chụp rõ mặt bạn.",
             backgroundColor: Colors.redAccent, colorText: Colors.white);
           return;
         }
@@ -95,8 +96,8 @@ class CheckinController extends GetxController {
 
         if (position.isMocked) {
           isLoading.value = false;
-          Get.snackbar("Cảnh báo bảo mật", "Phát hiện phần mềm giả mạo vị trí (Fake GPS). Hành động bị từ chối!", 
-            backgroundColor: Colors.redAccent, colorText: Colors.white, duration: const Duration(seconds: 5));
+          snack("Cảnh báo bảo mật", "Phát hiện phần mềm giả mạo vị trí (Fake GPS). Hành động bị từ chối!", 
+            backgroundColor: Colors.redAccent, colorText: Colors.white, duration: const Duration(seconds: 4));
           return;
         }
 
@@ -111,12 +112,12 @@ class CheckinController extends GetxController {
         final office = _getOfficeConfig();
         double distance = _calculateDistanceToOffice(currentLat, currentLng);
 
-        Get.snackbar(
+        snack(
           "Thông tin GPS Chi Tiết",
           "Cách cty: ${distance.toStringAsFixed(0)}m (cho phép ${office.radius.toStringAsFixed(0)}m)."
           "\nGPS Bạn: $currentLat, $currentLng"
           "\nGPS Cty: ${office.lat}, ${office.lng}",
-          duration: const Duration(seconds: 8),
+          duration: const Duration(seconds: 4),
         );
 
         if (distance > office.radius) {
@@ -129,7 +130,7 @@ class CheckinController extends GetxController {
         }
       }
     } catch (e) {
-      Get.snackbar("Lỗi", "Không thể lấy hình ảnh: $e");
+      snack("Lỗi", "Không thể lấy hình ảnh: $e");
     } finally {
       isLoading.value = false;
     }
@@ -214,19 +215,19 @@ class CheckinController extends GetxController {
     }
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      Get.snackbar("Lỗi", "Hãy bật định vị GPS trên điện thoại!");
+      snack("Lỗi", "Hãy bật định vị GPS trên điện thoại!");
       return null;
     }
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        Get.snackbar("Lỗi", "Bạn cần cấp quyền vị trí cho ứng dụng!");
+        snack("Lỗi", "Bạn cần cấp quyền vị trí cho ứng dụng!");
         return null;
       }
     }
     if (permission == LocationPermission.deniedForever) {
-      Get.snackbar("Lỗi", "Quyền vị trí bị từ chối vĩnh viễn. Vui lòng mở Cài đặt để cấp quyền.");
+      snack("Lỗi", "Quyền vị trí bị từ chối vĩnh viễn. Vui lòng mở Cài đặt để cấp quyền.");
       return null;
     }
     return await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
@@ -327,14 +328,14 @@ class CheckinController extends GetxController {
       
       if (position.isMocked) {
         isLoading.value = false;
-        Get.snackbar("Cảnh báo", "Phát hiện Fake GPS.", backgroundColor: Colors.redAccent, colorText: Colors.white);
+        snack("Cảnh báo", "Phát hiện Fake GPS.", backgroundColor: Colors.redAccent, colorText: Colors.white);
         return;
       }
 
       currentAddress = await _getAddressFromCoordinates(currentLat, currentLng);
       double distance = _calculateDistanceToOffice(currentLat, currentLng);
       
-      Get.snackbar("GPS", "Cách công ty: ${distance.toStringAsFixed(0)}m");
+      snack("GPS", "Cách công ty: ${distance.toStringAsFixed(0)}m");
 
       if (distance > 2000) {
         isOutOfRange.value = true;
@@ -344,7 +345,7 @@ class CheckinController extends GetxController {
         await performCheckin(note);
       }
     } catch (e) {
-      Get.snackbar("Lỗi", "Lỗi GPS: $e", backgroundColor: Colors.redAccent, colorText: Colors.white);
+      snack("Lỗi", "Lỗi GPS: $e", backgroundColor: Colors.redAccent, colorText: Colors.white);
       isLoading.value = false;
     }
   }
@@ -352,7 +353,7 @@ class CheckinController extends GetxController {
   /// Gửi dữ liệu lên API
   Future<void> performCheckin(String note) async {
     if (selectedImage.value == null) {
-      Get.snackbar("Lỗi", "Chưa có ảnh chân dung hợp lệ!");
+      snack("Lỗi", "Chưa có ảnh chân dung hợp lệ!");
       return;
     }
 
@@ -389,7 +390,7 @@ class CheckinController extends GetxController {
            successMsg += " Yêu cầu đang chờ duyệt.";
          }
       }
-      Get.snackbar("Thành công", successMsg, backgroundColor: Colors.green, colorText: Colors.white);
+      snack("Thành công", successMsg, backgroundColor: Colors.green, colorText: Colors.white);
       
     } catch (e) {
       String errorMessage = "Không thể thực hiện: $e";
@@ -399,7 +400,7 @@ class CheckinController extends GetxController {
           errorMessage = resData['message'];
         }
       }
-      Get.snackbar("Lỗi", errorMessage, backgroundColor: Colors.redAccent, colorText: Colors.white);
+      snack("Lỗi", errorMessage, backgroundColor: Colors.redAccent, colorText: Colors.white);
     } finally {
       isLoading.value = false;
     }

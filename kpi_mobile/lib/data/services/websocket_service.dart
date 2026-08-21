@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import '../../features/home/controllers/kpi_controller.dart';
 import '../../core/constants/api_constants.dart';
 import 'dart:convert';
+import '../../core/widgets/thong_bao.dart';
 
 class WebSocketService {
   static final WebSocketService _instance = WebSocketService._internal();
@@ -86,46 +87,35 @@ class WebSocketService {
                 }
                 kpiController.kpiWeeklyPoints.value = rawWeekly;
 
-                // Notifications
-                if (oldTotal > 0) { // Don't show notification on initial load
+                // Gộp mọi khoản vừa được cộng vào MỘT thông báo.
+                //
+                // Trước đây mỗi nhóm điểm bắn ra một thông báo riêng. Khi Admin
+                // duyệt liền mấy mục thì bốn thông báo nối đuôi nhau, mỗi cái
+                // phải chờ cái trước biến mất — người dùng thấy thông báo cứ trôi
+                // xuống chậm rãi mãi không hết.
+                if (oldTotal > 0) { // bỏ qua lần nạp dữ liệu đầu tiên
+                  final khoan = <String>[];
                   if (newAttendance > oldAttendance) {
-                    Get.snackbar(
-                      'Hoàn thành Chấm công / Đào tạo',
-                      'Bạn vừa được duyệt và cộng ${newAttendance - oldAttendance} điểm KPI!',
-                      backgroundColor: const Color(0xFF4CAF50),
-                      colorText: const Color(0xFFFFFFFF),
-                      snackPosition: SnackPosition.TOP,
-                      margin: const EdgeInsets.all(10),
-                    );
+                    khoan.add('Chấm công / Đào tạo +${newAttendance - oldAttendance}đ');
                   }
                   if (newMeeting > oldMeeting) {
-                    Get.snackbar(
-                      'Thực chiến / Đào tạo 1-1',
-                      'Bạn vừa được cộng ${newMeeting - oldMeeting} điểm KPI!',
-                      backgroundColor: const Color(0xFF4CAF50),
-                      colorText: const Color(0xFFFFFFFF),
-                      snackPosition: SnackPosition.TOP,
-                      margin: const EdgeInsets.all(10),
-                    );
+                    khoan.add('Thực chiến / Đào tạo 1-1 +${newMeeting - oldMeeting}đ');
                   }
                   if (newPost > oldPost) {
-                    Get.snackbar(
-                      'Bài đăng MXH đã duyệt',
-                      'Bạn vừa được cộng ${newPost - oldPost} điểm KPI lan tỏa dự án!',
-                      backgroundColor: const Color(0xFF4CAF50),
-                      colorText: const Color(0xFFFFFFFF),
-                      snackPosition: SnackPosition.TOP,
-                      margin: const EdgeInsets.all(10),
-                    );
+                    khoan.add('Lan tỏa +${newPost - oldPost}đ');
                   }
                   if (newDeal > oldDeal) {
-                    Get.snackbar(
-                      'Chốt căn thành công!',
-                      'Chúc mừng! Bạn vừa được cộng ${newDeal - oldDeal} điểm KPI chốt căn!',
-                      backgroundColor: const Color(0xFFD4AF37),
-                      colorText: const Color(0xFF0F2C59),
-                      snackPosition: SnackPosition.TOP,
-                      margin: const EdgeInsets.all(10),
+                    khoan.add('Chốt căn +${newDeal - oldDeal}đ');
+                  }
+
+                  if (khoan.isNotEmpty) {
+                    final coChotCan = newDeal > oldDeal;
+                    snack(
+                      coChotCan ? 'Chúc mừng, bạn vừa chốt căn!' : 'Bạn vừa được cộng điểm KPI',
+                      khoan.join('\n'),
+                      backgroundColor: coChotCan ? const Color(0xFFD4AF37) : const Color(0xFF4CAF50),
+                      colorText: coChotCan ? const Color(0xFF0F2C59) : const Color(0xFFFFFFFF),
+                      duration: const Duration(seconds: 4),
                     );
                   }
                 }

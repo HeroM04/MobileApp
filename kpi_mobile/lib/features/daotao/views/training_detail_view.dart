@@ -4,6 +4,7 @@ import '../controllers/training_controller.dart';
 import '../../auth/controllers/auth_controller.dart';
 import 'qr_token_display.dart';
 import 'qr_scanner_view.dart';
+import '../../../core/widgets/thong_bao.dart';
 
 class TrainingDetailView extends StatefulWidget {
   final TrainingRoom room;
@@ -164,7 +165,7 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
     try {
       final success = await controller.endRoom(widget.room.id);
       if (success) {
-        Get.snackbar(
+        snack(
           "Thành công",
           "Buổi học \"${widget.room.title}\" đã kết thúc!",
           backgroundColor: Colors.green,
@@ -178,7 +179,7 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
           Get.back(); 
         }
       } else {
-        Get.snackbar(
+        snack(
           "Lỗi",
           "Không thể kết thúc buổi học, vui lòng kiểm tra kết nối!",
           backgroundColor: Colors.red,
@@ -186,7 +187,7 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
         );
       }
     } catch (e) {
-      Get.snackbar("Lỗi", "Có lỗi xảy ra: $e");
+      snack("Lỗi", "Có lỗi xảy ra: $e");
     } finally {
       if (mounted) setState(() => _isEnding = false);
     }
@@ -200,7 +201,7 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
     // Kiểm tra xem đã có tên trong phòng chưa
     final alreadyAttended = widget.room.participants.any((p) => p['name'] == fullName);
     if (alreadyAttended) {
-      Get.snackbar(
+      snack(
         "Thông báo",
         "Bạn đã điểm danh thành công lớp học này rồi!",
         backgroundColor: Colors.orange,
@@ -221,7 +222,7 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
       
       // Kiểm tra mã quét được có khớp với mã phòng không
       if (extractedRoomCode != widget.room.roomCode) {
-        Get.snackbar(
+        snack(
           "Lỗi mã QR",
           "Mã QR bạn quét không thuộc về lớp học này. Vui lòng quét đúng mã hiển thị trên màn hình giảng viên!",
           backgroundColor: Colors.red,
@@ -257,7 +258,7 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
           onConfirm: () => Get.back(),
         );
       } else {
-        Get.snackbar(
+        snack(
           "Thất bại", 
           "Điểm danh không thành công. Hãy chắc chắn bạn chưa điểm danh và lớp chưa đầy.", 
           backgroundColor: Colors.red, 

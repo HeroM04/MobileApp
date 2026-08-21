@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../controllers/bai_post_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
+import '../../../core/widgets/thong_bao.dart';
 
 class BaiPostView extends StatefulWidget {
   const BaiPostView({super.key});
@@ -42,14 +43,14 @@ class _BaiPostViewState extends State<BaiPostView> {
         });
       }
     } catch (e) {
-      Get.snackbar("Lỗi", "Không thể chọn hình ảnh: $e");
+      snack("Lỗi", "Không thể chọn hình ảnh: $e");
     }
   }
 
   void _runOcrScan() async {
     if (!_formKey.currentState!.validate()) return;
     if (_screenshot == null) {
-      Get.snackbar("Yêu cầu", "Vui lòng chọn ảnh chụp màn hình bài viết để đối soát!");
+      snack("Yêu cầu", "Vui lòng chọn ảnh chụp màn hình bài viết để đối soát!");
       return;
     }
 
@@ -107,26 +108,26 @@ class _BaiPostViewState extends State<BaiPostView> {
         });
       } else {
         // Nói rõ hỏng ở đâu và ai sửa được, thay cho câu chung chung trước đây
-        Get.snackbar(
+        snack(
           failure.title,
           failure.isUserFixable
               ? failure.message
               : "${failure.message}\n(Lỗi hệ thống — nếu lặp lại, báo bộ phận kỹ thuật)",
           backgroundColor: failure.isUserFixable ? Colors.orange.shade800 : Colors.red.shade700,
           colorText: Colors.white,
-          duration: const Duration(seconds: 6),
+          duration: const Duration(seconds: 4),
           isDismissible: true,
         );
       }
     } else {
       final thieu = _requiredHashtags.where((t) => !_foundHashtags.contains(t)).join('  ');
-      Get.snackbar(
+      snack(
         "Thiếu hashtag bắt buộc",
         "Nội dung caption phải có #trilongland và ít nhất một trong #bds hoặc #kpi.\n"
         "Đang thiếu: $thieu",
         backgroundColor: Colors.orange.shade800,
         colorText: Colors.white,
-        duration: const Duration(seconds: 6),
+        duration: const Duration(seconds: 4),
       );
     }
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/phan_hoi_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
+import '../../../core/widgets/thong_bao.dart';
 
 class PhanHoiView extends StatefulWidget {
   const PhanHoiView({super.key});
@@ -46,7 +47,7 @@ class _PhanHoiViewState extends State<PhanHoiView> {
     );
 
     if (success) {
-      Get.snackbar(
+      snack(
         "Gửi thành công",
         "Phản hồi đã được truyền qua hệ thống đến Ban quản lý. Ban giám đốc/HR sẽ phản hồi bạn sớm nhất!",
         backgroundColor: Colors.green,
@@ -59,7 +60,7 @@ class _PhanHoiViewState extends State<PhanHoiView> {
         _rating = 5;
       });
     } else {
-      Get.snackbar("Lỗi", "Không thể gửi phản hồi, vui lòng thử lại sau.", backgroundColor: Colors.red, colorText: Colors.white);
+      snack("Lỗi", "Không thể gửi phản hồi, vui lòng thử lại sau.", backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
 

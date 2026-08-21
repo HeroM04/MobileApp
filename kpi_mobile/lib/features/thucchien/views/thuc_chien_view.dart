@@ -8,6 +8,7 @@ import '../../home/controllers/kpi_controller.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../controllers/thuc_chien_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
+import '../../../core/widgets/thong_bao.dart';
 
 class ThucChienView extends StatefulWidget {
   const ThucChienView({super.key});
@@ -96,7 +97,7 @@ class _ThucChienViewState extends State<ThucChienView> {
           _selectedImage = watermarkedFile;
         });
 
-        Get.snackbar(
+        snack(
           "Ảnh đã ghi nhận",
           "Đã gắn thời gian & địa điểm vào ảnh.",
           backgroundColor: Colors.green,
@@ -105,7 +106,7 @@ class _ThucChienViewState extends State<ThucChienView> {
         );
       }
     } catch (e) {
-      Get.snackbar("Lỗi", "Không thể chụp ảnh: $e");
+      snack("Lỗi", "Không thể chụp ảnh: $e");
     }
   }
 
@@ -228,7 +229,7 @@ class _ThucChienViewState extends State<ThucChienView> {
   void _submitMeeting() {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedImage == null) {
-      Get.snackbar("Lỗi", "Vui lòng chụp ảnh gặp mặt khách hàng tại thực địa!");
+      snack("Lỗi", "Vui lòng chụp ảnh gặp mặt khách hàng tại thực địa!");
       return;
     }
 

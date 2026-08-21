@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import '../controllers/leave_controller.dart';
+import '../../../core/widgets/thong_bao.dart';
 
 /// Tab "XIN VẮNG" trong màn hình Điểm danh.
 ///
@@ -47,14 +48,14 @@ class _LeaveRequestTabState extends State<LeaveRequestTab> {
     if (!mounted) return;
     if (err == null) {
       _reasonController.clear();
-      Get.snackbar(
+      snack(
         'Đã gửi đơn',
         'Đơn xin vắng đã gửi tới Admin, chờ xét duyệt.',
         backgroundColor: Colors.green.shade600,
         colorText: Colors.white,
       );
     } else {
-      Get.snackbar('Không gửi được', err,
+      snack('Không gửi được', err,
           backgroundColor: Colors.redAccent, colorText: Colors.white);
     }
   }
@@ -249,7 +250,7 @@ class _LeaveRequestTabState extends State<LeaveRequestTab> {
                   onPressed: () async {
                     final err = await controller.cancel(r['id'] as int);
                     if (err != null) {
-                      Get.snackbar('Không hủy được', err,
+                      snack('Không hủy được', err,
                           backgroundColor: Colors.redAccent, colorText: Colors.white);
                     }
                   },
