@@ -163,7 +163,7 @@ class WebSocketService {
       noiDung = lyDo;
     } else {
       final khoan = <String>[];
-      if (congAttendance != 0) khoan.add('Chuyên cần & Đào tạo ${_dau(congAttendance)}đ');
+      if (congAttendance != 0) khoan.add('Phát triển cá nhân ${_dau(congAttendance)}đ');
       if (congMeeting != 0) khoan.add('Thực chiến ${_dau(congMeeting)}đ');
       if (congPost != 0) khoan.add('Lan tỏa ${_dau(congPost)}đ');
       if (congDeal != 0) khoan.add('Chốt căn ${_dau(congDeal)}đ');
