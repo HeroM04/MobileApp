@@ -29,6 +29,11 @@ class TrainingRoom {
   /// Giờ kết thúc theo lịch, để hiện khoảng giờ học.
   final DateTime? endTime;
 
+  /// SKILL = đào tạo kỹ năng · PROJECT = đào tạo dự án (bắt buộc tham gia).
+  final String trainingType;
+
+  bool get laDaoTaoDuAn => trainingType == 'PROJECT';
+
   final String? videoUrl; // Link YouTube — chỉ có sau khi buổi học COMPLETED
   final RxList<Map<String, dynamic>> participants;
 
@@ -48,10 +53,12 @@ class TrainingRoom {
     required this.status,
     String? displayStatus,
     this.endTime,
+    String? trainingType,
     this.videoUrl,
     List<Map<String, dynamic>>? initialParticipants,
   })  : displayStatus =
             (displayStatus == null || displayStatus.isEmpty) ? status : displayStatus,
+        trainingType = (trainingType == null || trainingType.isEmpty) ? 'SKILL' : trainingType,
         participants = (initialParticipants ?? <Map<String, dynamic>>[]).obs;
 
   factory TrainingRoom.fromJson(Map<String, dynamic> json) {
@@ -96,6 +103,7 @@ class TrainingRoom {
         endTime: json['endTime'] != null
             ? DateTime.tryParse(json['endTime'].toString())
             : null,
+        trainingType: json['trainingType']?.toString(),
         videoUrl: json['videoUrl']?.toString(),
         initialParticipants: parsedAttendees,
       );

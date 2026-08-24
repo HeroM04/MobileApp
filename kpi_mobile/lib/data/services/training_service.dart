@@ -55,4 +55,32 @@ class TrainingService {
     );
     return response.data;
   }
+
+  // ── Đào tạo dự án: đăng ký tham gia hay xin vắng ─────────────────────────
+
+  /// Trả lời sẽ tham gia buổi đào tạo. Vẫn phải quét mã ở buổi học mới là
+  /// điểm danh — đây chỉ là lời hứa có mặt.
+  Future<Map<String, dynamic>> dangKyThamGia(int sessionId) async {
+    final response = await ApiClient.dio.post(
+      '/training-sessions/$sessionId/rsvp',
+      data: {'choice': 'JOIN'},
+    );
+    return response.data;
+  }
+
+  /// Xin không tham gia kèm lý do — Admin duyệt xong mới được tính điểm danh.
+  Future<Map<String, dynamic>> xinVangDaoTao(int sessionId, String lyDo) async {
+    final response = await ApiClient.dio.post(
+      '/training-sessions/$sessionId/rsvp',
+      data: {'choice': 'DECLINE', 'reason': lyDo},
+    );
+    return response.data;
+  }
+
+  /// Câu trả lời hiện tại của mình cho buổi này; null nghĩa là chưa trả lời.
+  Future<Map<String, dynamic>?> traLoiCuaToi(int sessionId) async {
+    final response = await ApiClient.dio.get('/training-sessions/$sessionId/rsvp/my');
+    final d = response.data?['data'];
+    return d is Map<String, dynamic> ? d : null;
+  }
 }

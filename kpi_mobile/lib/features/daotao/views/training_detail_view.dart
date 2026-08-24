@@ -4,7 +4,9 @@ import '../controllers/training_controller.dart';
 import '../../auth/controllers/auth_controller.dart';
 import 'qr_token_display.dart';
 import 'qr_scanner_view.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/thong_bao.dart';
+import '../../../data/services/training_service.dart';
 
 class TrainingDetailView extends StatefulWidget {
   final TrainingRoom room;
@@ -22,12 +24,27 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
   bool _isScanning = false;
   bool _isEnding = false;
 
+  /// Câu trả lời tham gia / xin vắng của mình cho buổi đào tạo dự án này.
+  /// null nghĩa là chưa trả lời.
+  Map<String, dynamic>? _traLoi;
+  bool _dangGuiTraLoi = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadLatestData();
+      if (widget.room.laDaoTaoDuAn) _napTraLoi();
     });
+  }
+
+  Future<void> _napTraLoi() async {
+    try {
+      final r = await TrainingService().traLoiCuaToi(widget.room.id);
+      if (mounted) setState(() => _traLoi = r);
+    } catch (_) {
+      // Không lấy được thì cứ hiện hai nút như chưa trả lời
+    }
   }
 
   Future<void> _loadLatestData() async {
@@ -43,6 +60,239 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
   @override
   void dispose() {
     super.dispose();
+  }
+
+  // ── Đào tạo dự án: tham gia hay xin vắng ─────────────────────────────────
+
+  Future<void> _chonThamGia() async {
+    setState(() => _dangGuiTraLoi = true);
+    try {
+      await TrainingService().dangKyThamGia(widget.room.id);
+      await _napTraLoi();
+      snack('Đã ghi nhận', 'Nhớ quét mã điểm danh khi đến buổi học nhé.',
+          backgroundColor: const Color(0xFF16A34A), colorText: Colors.white);
+    } catch (e) {
+      final f = describeApiFailure(e, action: 'đăng ký tham gia');
+      snack(f.title, f.message,
+          backgroundColor: f.isUserFixable ? Colors.orange.shade800 : Colors.red.shade700,
+          colorText: Colors.white, duration: const Duration(seconds: 4));
+    } finally {
+      if (mounted) setState(() => _dangGuiTraLoi = false);
+    }
+  }
+
+  Future<void> _chonKhongThamGia() async {
+    final lyDoController = TextEditingController();
+    final lyDo = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Lý do không tham gia',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF0F2C59))),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Đây là buổi đào tạo dự án, mặc định mọi người đều phải tham gia. '
+              'Ghi rõ lý do để Admin xem xét.',
+              style: TextStyle(fontSize: 12.5, height: 1.4, color: Color(0xFF64748B)),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: lyDoController,
+              maxLines: 3,
+              maxLength: 500,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Ví dụ: Tôi không bán dự án này, đang phụ trách dự án khác',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Hủy')),
+          ElevatedButton(
+            onPressed: () {
+              final v = lyDoController.text.trim();
+              if (v.isEmpty) return; // nút không ăn khi chưa nhập gì
+              Navigator.of(ctx).pop(v);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F2C59),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+            ),
+            child: const Text('Gửi cho Admin'),
+          ),
+        ],
+      ),
+    );
+    lyDoController.dispose();
+    if (lyDo == null || lyDo.isEmpty) return;
+
+    setState(() => _dangGuiTraLoi = true);
+    try {
+      await TrainingService().xinVangDaoTao(widget.room.id, lyDo);
+      await _napTraLoi();
+      snack('Đã gửi lý do', 'Admin sẽ xem xét. Được duyệt thì bạn vẫn được tính điểm danh.',
+          backgroundColor: const Color(0xFFD4AF37), colorText: const Color(0xFF0F2C59),
+          duration: const Duration(seconds: 4));
+    } catch (e) {
+      final f = describeApiFailure(e, action: 'gửi lý do xin vắng');
+      snack(f.title, f.message,
+          backgroundColor: f.isUserFixable ? Colors.orange.shade800 : Colors.red.shade700,
+          colorText: Colors.white, duration: const Duration(seconds: 4));
+    } finally {
+      if (mounted) setState(() => _dangGuiTraLoi = false);
+    }
+  }
+
+  /// Khối đăng ký tham gia — chỉ hiện với buổi đào tạo DỰ ÁN.
+  Widget _khoiDangKy() {
+    final choice = _traLoi?['choice']?.toString();
+    final status = _traLoi?['status']?.toString();
+
+    Widget khung({required Color vien, required Color nen, required List<Widget> con}) => Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: nen,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: vien, width: 1.2),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: con),
+        );
+
+    const nhan = Text('ĐÀO TẠO DỰ ÁN — BẮT BUỘC THAM GIA',
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF9A3412)));
+
+    // Đã xin vắng
+    if (choice == 'DECLINE') {
+      final duyet = status == 'APPROVED';
+      final tuChoi = status == 'REJECTED';
+      return khung(
+        vien: duyet ? const Color(0xFF86EFAC) : (tuChoi ? const Color(0xFFFCA5A5) : const Color(0xFFFED7AA)),
+        nen: duyet ? const Color(0xFFF0FDF4) : (tuChoi ? const Color(0xFFFEF2F2) : const Color(0xFFFFF7ED)),
+        con: [
+          Row(children: [
+            Icon(duyet ? Icons.verified_rounded : (tuChoi ? Icons.cancel_rounded : Icons.hourglass_top_rounded),
+                size: 16, color: duyet ? const Color(0xFF15803D) : (tuChoi ? const Color(0xFFB91C1C) : const Color(0xFF9A3412))),
+            const SizedBox(width: 6),
+            Text(
+              duyet ? 'Đã được duyệt vắng' : (tuChoi ? 'Lý do bị từ chối' : 'Chờ Admin duyệt lý do'),
+              style: TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w800,
+                  color: duyet ? const Color(0xFF15803D) : (tuChoi ? const Color(0xFFB91C1C) : const Color(0xFF9A3412))),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          Text('Lý do bạn gửi: “${_traLoi?['reason'] ?? ''}”',
+              style: const TextStyle(fontSize: 12.5, height: 1.4, color: Color(0xFF475569))),
+          if (_traLoi?['reviewNote'] != null && '${_traLoi?['reviewNote']}'.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text('Admin ghi: “${_traLoi?['reviewNote']}”',
+                style: const TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF64748B))),
+          ],
+          const SizedBox(height: 8),
+          Text(
+            duyet
+                ? 'Bạn được tính có điểm danh buổi này, không mất điểm đào tạo.'
+                : (tuChoi
+                    ? 'Bạn vẫn cần tham gia và quét mã điểm danh, nếu không sẽ bị tính vắng.'
+                    : 'Được duyệt thì bạn vẫn được tính điểm danh mà không phải dự buổi này.'),
+            style: const TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF64748B)),
+          ),
+          if (tuChoi) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _dangGuiTraLoi ? null : _chonKhongThamGia,
+                child: const Text('Gửi lại lý do khác'),
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+
+    // Đã chọn tham gia
+    if (choice == 'JOIN') {
+      return khung(
+        vien: const Color(0xFF93C5FD),
+        nen: const Color(0xFFEFF6FF),
+        con: [
+          nhan,
+          const SizedBox(height: 8),
+          const Row(children: [
+            Icon(Icons.event_available_rounded, size: 16, color: Color(0xFF1D4ED8)),
+            SizedBox(width: 6),
+            Text('Bạn đã đăng ký tham gia',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF1D4ED8))),
+          ]),
+          const SizedBox(height: 6),
+          const Text('Nhớ quét mã điểm danh khi đến buổi học — đăng ký thôi thì chưa được tính.',
+              style: TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF64748B))),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: _dangGuiTraLoi ? null : _chonKhongThamGia,
+              child: const Text('Đổi sang xin vắng'),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Chưa trả lời
+    return khung(
+      vien: const Color(0xFFFED7AA),
+      nen: const Color(0xFFFFF7ED),
+      con: [
+        nhan,
+        const SizedBox(height: 6),
+        const Text('Bạn có tham gia buổi này không?',
+            style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: Color(0xFF0F2C59))),
+        const SizedBox(height: 4),
+        const Text('Không bán dự án này thì chọn “Không tham gia” và ghi rõ lý do để Admin duyệt.',
+            style: TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF64748B))),
+        const SizedBox(height: 14),
+        Row(children: [
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: _dangGuiTraLoi ? null : _chonThamGia,
+              icon: const Icon(Icons.check_rounded, size: 18),
+              label: const Text('Tham gia'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0F2C59),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _dangGuiTraLoi ? null : _chonKhongThamGia,
+              icon: const Icon(Icons.close_rounded, size: 18),
+              label: const Text('Không tham gia'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF9A3412),
+                side: const BorderSide(color: Color(0xFFFDBA74), width: 1.3),
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+        ]),
+      ],
+    );
   }
 
   // Xác nhận kết thúc phòng học — hiện dialog đẹp với tóm tắt buổi học
@@ -355,6 +605,10 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Đào tạo dự án: hỏi tham gia hay xin vắng, đặt trước cả thông tin
+            // buổi học vì đây là việc nhân sự cần làm ngay khi mở màn hình.
+            if (widget.room.laDaoTaoDuAn && !isAdminOrManager) _khoiDangKy(),
+
             // Thông tin chi tiết phòng đào tạo
             Container(
               padding: const EdgeInsets.all(20),
