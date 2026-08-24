@@ -403,14 +403,19 @@ class _DaoTaoViewState extends State<DaoTaoView> {
               ),
             ),
 
-            // Danh sách phòng đào tạo
+            // Danh sách buổi đào tạo của tuần này
             const Text(
-              "Phòng học đang diễn ra",
+              "Lịch đào tạo tuần này",
               style: TextStyle(
                 color: Color(0xFF0F2C59),
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
+            ),
+            const SizedBox(height: 2),
+            const Text(
+              "Đang diễn ra xếp trên, rồi tới sắp diễn ra, cuối cùng là đã kết thúc.",
+              style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
             ),
             const SizedBox(height: 12),
 
@@ -421,10 +426,10 @@ class _DaoTaoViewState extends State<DaoTaoView> {
                     padding: const EdgeInsets.symmetric(vertical: 40),
                     child: Column(
                       children: const [
-                        Icon(Icons.class_outlined, size: 50, color: Colors.grey),
+                        Icon(Icons.event_available_outlined, size: 50, color: Colors.grey),
                         SizedBox(height: 12),
                         Text(
-                          "Chưa có lớp đào tạo nào được tạo",
+                          "Tuần này chưa có buổi đào tạo nào",
                           style: TextStyle(color: Colors.grey, fontSize: 14),
                         ),
                       ],
@@ -462,21 +467,7 @@ class _DaoTaoViewState extends State<DaoTaoView> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF0F2C59).withOpacity(0.06),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  "Mã: ${room.roomCode}",
-                                  style: const TextStyle(
-                                    color: Color(0xFF0F2C59),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
+                              _nhanTrangThai(room),
                               Row(
                                 children: [
                                   const Icon(Icons.people_outline, size: 14, color: Colors.grey),
@@ -522,9 +513,15 @@ class _DaoTaoViewState extends State<DaoTaoView> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                "Thời gian: ${room.dateTime.hour.toString().padLeft(2, '0')}:${room.dateTime.minute.toString().padLeft(2, '0')} - ${room.dateTime.day}/${room.dateTime.month}/${room.dateTime.year}",
-                                style: const TextStyle(fontSize: 11, color: Color(0xFFD4AF37), fontWeight: FontWeight.bold),
+                              Flexible(
+                                child: Text(
+                                  _khoangGio(room),
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFFD4AF37),
+                                      fontWeight: FontWeight.bold),
+                                ),
                               ),
                               Row(
                                 children: const [
@@ -553,5 +550,61 @@ class _DaoTaoViewState extends State<DaoTaoView> {
         ),
       ),
     );
+  }
+
+  /// Nhãn trạng thái của buổi học, thay cho mã phòng ở góc trái thẻ.
+  ///
+  /// Dùng `displayStatus` do máy chủ tính theo đồng hồ, nên đến giờ học là thẻ
+  /// tự đổi sang "Đang diễn ra" mà không cần Admin bấm gì.
+  static Widget _nhanTrangThai(TrainingRoom room) {
+    late final String chu;
+    late final Color nen;
+    late final Color mucChu;
+    late final IconData bieuTuong;
+
+    if (room.dangDienRa) {
+      chu = 'Đang diễn ra';
+      nen = const Color(0xFF16A34A).withOpacity(0.12);
+      mucChu = const Color(0xFF15803D);
+      bieuTuong = Icons.play_circle_fill_rounded;
+    } else if (room.daKetThuc) {
+      chu = 'Đã kết thúc';
+      nen = const Color(0xFF94A3B8).withOpacity(0.14);
+      mucChu = const Color(0xFF64748B);
+      bieuTuong = Icons.check_circle_outline_rounded;
+    } else {
+      chu = 'Sắp diễn ra';
+      nen = const Color(0xFF0F2C59).withOpacity(0.08);
+      mucChu = const Color(0xFF0F2C59);
+      bieuTuong = Icons.schedule_rounded;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(color: nen, borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(bieuTuong, size: 12, color: mucChu),
+          const SizedBox(width: 5),
+          Text(chu,
+              style: TextStyle(color: mucChu, fontSize: 10, fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+
+  /// "Thứ Năm 20/08 · 09:00 – 11:00" — có giờ kết thúc thì hiện cả khoảng.
+  static String _khoangGio(TrainingRoom room) {
+    const thu = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ nhật'];
+    String hhmm(DateTime d) =>
+        '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+    final b = room.dateTime.toLocal();
+    final ngay = '${thu[b.weekday - 1]} ${b.day.toString().padLeft(2, '0')}/${b.month.toString().padLeft(2, '0')}';
+    final k = room.endTime == null
+        ? hhmm(b)
+        : '${hhmm(b)} – ${hhmm(room.endTime!.toLocal())}';
+    return '$ngay · $k';
   }
 }

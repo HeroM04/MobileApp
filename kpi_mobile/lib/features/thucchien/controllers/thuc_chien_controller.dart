@@ -174,6 +174,7 @@ class ThucChienController extends GetxController {
     required String content,
     required String imagePath,
     required VoidCallback onSuccess,   // Callback reset form ngay khi ấn nút
+    String battleType = 'MEETING',     // MEETING = gặp khách (+10đ), SUPPORT = hỗ trợ khách (+5đ)
   }) async {
     // Lấy GPS và địa chỉ TRƯỚC khi submit
     await getCurrentLocationAndAddress();
@@ -197,6 +198,7 @@ class ThucChienController extends GetxController {
         project: project,
         content: content,
         imagePath: imagePath,
+        battleType: battleType,
       );
   }
 
@@ -207,6 +209,7 @@ class ThucChienController extends GetxController {
     required String project,
     required String content,
     required String imagePath,
+    String battleType = 'MEETING',
   }) async {
     // Không ping thử trước nữa. Trước đây có một lượt ping chờ tối đa 8 giây để
     // quyết định còn mạng hay không; máy chủ Render vừa ngủ dậy mất tới cả phút
@@ -228,6 +231,7 @@ class ThucChienController extends GetxController {
         'customerName': name,
         'customerPhone': phone,
         'project': project,
+        'battleType': battleType,
         'content': content,
         'photoUrl': realImageUrl ?? "",
         'location': currentAddress.value.isNotEmpty ? currentAddress.value : 'Không xác định',
@@ -258,7 +262,7 @@ class ThucChienController extends GetxController {
       // báo thẳng để nhân viên sửa rồi gửi lại.
       if (failure.worthRetrying) {
         offlineDrafts.add({
-          'name': name, 'phone': phone,
+          'name': name, 'phone': phone, 'battleType': battleType,
           'project': project, 'content': content, 'image': imagePath,
         });
       }
@@ -302,6 +306,8 @@ class ThucChienController extends GetxController {
           'customerName': draft['name'],
           'customerPhone': draft['phone'],
           'project': draft['project'],
+          // Bản nháp cũ lưu trước khi có phân loại thì mặc định là gặp khách
+          'battleType': draft['battleType'] ?? 'MEETING',
           'content': draft['content'],
           'photoUrl': realImageUrl ?? "",
         });

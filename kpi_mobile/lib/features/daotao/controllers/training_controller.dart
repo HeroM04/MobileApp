@@ -14,9 +14,27 @@ class TrainingRoom {
   final DateTime dateTime;
   final int maxSlots;
   final int currentSlots;
+
+  /// Trạng thái Admin đặt tay: UPCOMING · COMPLETED · CANCELLED.
   final String status;
+
+  /// Trạng thái để HIỂN THỊ, máy chủ tính lại theo đồng hồ mỗi lần đọc:
+  /// ONGOING · UPCOMING · COMPLETED · CANCELLED.
+  ///
+  /// Đến giờ học là buổi tự chuyển sang ONGOING mà không cần ai bấm gì, nên
+  /// phải dùng trường này để vẽ nhãn và sắp thứ tự. Máy chủ bản cũ không gửi
+  /// thì rơi về [status].
+  final String displayStatus;
+
+  /// Giờ kết thúc theo lịch, để hiện khoảng giờ học.
+  final DateTime? endTime;
+
   final String? videoUrl; // Link YouTube — chỉ có sau khi buổi học COMPLETED
   final RxList<Map<String, dynamic>> participants;
+
+  bool get dangDienRa => displayStatus == 'ONGOING';
+  bool get sapDienRa => displayStatus == 'UPCOMING';
+  bool get daKetThuc => displayStatus == 'COMPLETED';
 
   TrainingRoom({
     required this.id,
@@ -28,9 +46,13 @@ class TrainingRoom {
     required this.maxSlots,
     required this.currentSlots,
     required this.status,
+    String? displayStatus,
+    this.endTime,
     this.videoUrl,
     List<Map<String, dynamic>>? initialParticipants,
-  }) : participants = (initialParticipants ?? <Map<String, dynamic>>[]).obs;
+  })  : displayStatus =
+            (displayStatus == null || displayStatus.isEmpty) ? status : displayStatus,
+        participants = (initialParticipants ?? <Map<String, dynamic>>[]).obs;
 
   factory TrainingRoom.fromJson(Map<String, dynamic> json) {
     try {
@@ -70,6 +92,10 @@ class TrainingRoom {
         maxSlots: json['maxSlots'] is int ? json['maxSlots'] : int.tryParse(json['maxSlots'].toString()) ?? 0,
         currentSlots: json['currentSlots'] is int ? json['currentSlots'] : int.tryParse(json['currentSlots'].toString()) ?? 0,
         status: json['status']?.toString() ?? '',
+        displayStatus: json['displayStatus']?.toString(),
+        endTime: json['endTime'] != null
+            ? DateTime.tryParse(json['endTime'].toString())
+            : null,
         videoUrl: json['videoUrl']?.toString(),
         initialParticipants: parsedAttendees,
       );

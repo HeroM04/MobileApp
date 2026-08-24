@@ -25,7 +25,10 @@ class _ThucChienViewState extends State<ThucChienView> {
   
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _contentController = TextEditingController();
-  
+
+  /// MEETING = trực tiếp gặp khách (+10đ) · SUPPORT = hỗ trợ khách (+5đ)
+  String _loaiThucChien = 'MEETING';
+
   File? _selectedImage;
 
   @override
@@ -238,6 +241,7 @@ class _ThucChienViewState extends State<ThucChienView> {
       name: "",
       phone: "",
       project: "",
+      battleType: _loaiThucChien,
       content: _contentController.text,
       imagePath: _selectedImage!.path,
       onSuccess: () {
@@ -245,8 +249,70 @@ class _ThucChienViewState extends State<ThucChienView> {
         setState(() {
           _contentController.clear();
           _selectedImage = null;
+          _loaiThucChien = 'MEETING';
         });
       },
+    );
+  }
+
+  /// Chọn loại thực chiến — quyết định số điểm khi Admin duyệt.
+  Widget _chonLoaiThucChien() {
+    Widget o(String ma, String ten, String diem, IconData bt) {
+      final chon = _loaiThucChien == ma;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setState(() => _loaiThucChien = ma),
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+            decoration: BoxDecoration(
+              color: chon ? const Color(0xFF0F2C59).withOpacity(0.06) : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: chon ? const Color(0xFF0F2C59) : const Color(0xFFE2E8F0),
+                width: chon ? 1.6 : 1,
+              ),
+            ),
+            child: Column(
+              children: [
+                Icon(bt, size: 22, color: chon ? const Color(0xFF0F2C59) : const Color(0xFF94A3B8)),
+                const SizedBox(height: 6),
+                Text(ten,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: chon ? FontWeight.w800 : FontWeight.w600,
+                      color: chon ? const Color(0xFF0F2C59) : const Color(0xFF64748B),
+                    )),
+                const SizedBox(height: 2),
+                Text(diem,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: chon ? const Color(0xFFB8860B) : const Color(0xFF94A3B8),
+                    )),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('LOẠI THỰC CHIẾN',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            o('MEETING', 'Gặp khách', '+10đ', Icons.handshake_outlined),
+            const SizedBox(width: 10),
+            o('SUPPORT', 'Hỗ trợ khách', '+5đ', Icons.support_agent_outlined),
+          ],
+        ),
+      ],
     );
   }
 
@@ -458,10 +524,13 @@ class _ThucChienViewState extends State<ThucChienView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "Ghi nhận gặp khách hàng",
+                    "Ghi nhận thực chiến",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F2C59)),
                   ),
                   const Divider(height: 24),
+
+                  _chonLoaiThucChien(),
+                  const SizedBox(height: 20),
 
                   // Nội dung trao đổi
                   const Text("NỘI DUNG TRAO ĐỔI", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
