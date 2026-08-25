@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; // Thêm để dùng kReleaseMode
+import 'package:firebase_core/firebase_core.dart';
 import 'package:get/get.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // Thêm dotenv
 import 'features/auth/controllers/auth_controller.dart';
@@ -10,6 +11,15 @@ import 'data/services/websocket_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Nền Firebase cho thông báo đẩy. Đọc cấu hình từ google-services.json
+  // (Android) và GoogleService-Info.plist (iOS) đã đặt sẵn trong dự án. Bọc
+  // try để nếu thiếu cấu hình thì app vẫn chạy, chỉ là không có thông báo đẩy.
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    if (kDebugMode) print('[Firebase] Không khởi tạo được: $e');
+  }
 
   // Load biến môi trường tùy theo chế độ chạy (Release = Prod, Debug = Dev)
   const envFile = kReleaseMode ? '.env.production' : '.env.development';

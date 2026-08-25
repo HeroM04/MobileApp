@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart' as dio_pkg;
 import '../../../core/network/api_client.dart';
+import '../../../data/services/push_service.dart';
 import '../../home/controllers/kpi_controller.dart';
 import '../../shell/views/shell_view.dart';
 import '../views/login_view.dart';
@@ -51,6 +52,7 @@ class AuthController extends GetxController {
             'allowedRadius': allowedRadius ?? 100,
           };
           isLoggedIn.value = true;
+          PushService().khoiDong(); // mở lại app khi đã đăng nhập
         }
       }
     } catch (e) {
@@ -149,6 +151,7 @@ class AuthController extends GetxController {
 
         currentUser.value = mockUser;
         isLoggedIn.value = true;
+        PushService().khoiDong();
 
         snack("Thành công", "Đăng nhập thử nghiệm thành công!");
         Get.offAll(() => ShellView());
@@ -202,6 +205,7 @@ class AuthController extends GetxController {
             'allowedRadius': data['allowedRadius'],
           };
           isLoggedIn.value = true;
+          PushService().khoiDong();
 
           snack("Thành công", "Đăng nhập hệ thống thành công!");
           Get.offAll(() => ShellView());
@@ -230,6 +234,9 @@ class AuthController extends GetxController {
 
   // 3. Hàm đăng xuất (Logout)
   Future<void> logout() async {
+    // Gỡ mã thiết bị trước khi mất token, để máy chủ thôi gửi thông báo tới
+    // máy này — tránh trường hợp người khác mượn máy vẫn nhận thông báo cũ.
+    await PushService().huyDangKy();
     try {
       if (!ApiClient.isDebugMode) {
         final refreshToken = await _secureStorage.read(key: 'refreshToken');

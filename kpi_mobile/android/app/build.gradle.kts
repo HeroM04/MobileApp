@@ -6,6 +6,13 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Nạp google-services.json để bật thông báo đẩy Firebase.
+    //
+    // Plugin này BẮT BUỘC phải có tệp android/app/google-services.json — thiếu
+    // là build hỏng. Tệp đó bị .gitignore loại trừ (không lên kho công khai),
+    // nên máy build phải tự chuẩn bị: máy dev đặt tệp thật vào, còn Codemagic
+    // nạp từ biến môi trường GOOGLE_SERVICES_JSON (base64) trước khi build.
+    id("com.google.gms.google-services")
 }
 
 // ─── Thông tin ký số bản phát hành ────────────────────────────────────────
@@ -27,6 +34,10 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Cho phép dùng API Java mới trên máy Android đời cũ. Gói
+        // flutter_local_notifications (hiện thông báo khi app đang mở) bắt buộc
+        // bật mục này, thiếu là build hỏng ngay ở bước kiểm tra thư viện.
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -73,4 +84,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Thư viện đi kèm bắt buộc khi bật isCoreLibraryDesugaringEnabled ở trên.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

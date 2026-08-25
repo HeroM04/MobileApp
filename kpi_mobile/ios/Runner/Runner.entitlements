@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Môi trường thông báo đẩy của Apple.
+
+	  "development" khớp với bản chạy qua Xcode và TestFlight (sandbox APNs).
+	  Codemagic build bản phân phối cũng dùng sandbox nên để "development" là
+	  đúng cho giai đoạn thử. Khi phát hành App Store chính thức thì đổi thành
+	  "production".
+	-->
+	<key>aps-environment</key>
+	<string>development</string>
+</dict>
+</plist>

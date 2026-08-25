@@ -65,6 +65,9 @@ dependencies:
   mobile_scanner: ^7.2.0
   flutter_dotenv: ^5.1.0
   url_launcher: ^6.3.0      # Deep-link mở YouTube App hoặc Browser (Kho tài liệu đào tạo)
+  firebase_core: ^3.6.0     # Nền Firebase, bắt buộc trước khi dùng messaging
+  firebase_messaging: ^15.1.3  # Thông báo đẩy hiện ngoài màn hình điện thoại
+  flutter_local_notifications: ^18.0.1  # Hiện thông báo khi app đang mở (foreground)
 
 dev_dependencies:
   flutter_test:

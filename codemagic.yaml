@@ -38,6 +38,19 @@ workflows:
       # Thay vào đó tạo/tải chứng chỉ tường minh ở bước script bên dưới (--create).
 
     scripts:
+      # Cấu hình Firebase KHÔNG nằm trong Git (kho công khai) nên phải dựng lại
+      # từ biến môi trường. Thiếu biến thì bỏ qua — app vẫn build, chỉ là không
+      # có thông báo đẩy.
+      - name: Dung lai cau hinh Firebase
+        script: |
+          cd $FLUTTER_PROJECT_DIR
+          if [ -n "$GOOGLE_SERVICE_INFO_PLIST" ]; then
+            echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > ios/Runner/GoogleService-Info.plist
+            echo "Da tao GoogleService-Info.plist"
+          else
+            echo "CANH BAO: thieu GOOGLE_SERVICE_INFO_PLIST, iOS se khong co thong bao day"
+          fi
+
       - name: Cai dat dependencies
         script: |
           cd $FLUTTER_PROJECT_DIR
@@ -158,6 +171,16 @@ workflows:
         FLUTTER_PROJECT_DIR: "kpi_mobile"
 
     scripts:
+      - name: Dung lai cau hinh Firebase
+        script: |
+          cd $FLUTTER_PROJECT_DIR
+          if [ -n "$GOOGLE_SERVICE_INFO_PLIST" ]; then
+            echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > ios/Runner/GoogleService-Info.plist
+            echo "Da tao GoogleService-Info.plist"
+          else
+            echo "CANH BAO: thieu GOOGLE_SERVICE_INFO_PLIST, build thu van chay binh thuong"
+          fi
+
       - name: Cai dat dependencies
         script: |
           cd $FLUTTER_PROJECT_DIR
@@ -240,6 +263,20 @@ workflows:
           storeFile=$CM_BUILD_DIR/$FLUTTER_PROJECT_DIR/android/release.jks
           EOF
           echo "Da tao key.properties"
+
+      # google-services.json KHÔNG nằm trong Git (kho công khai) nhưng plugin
+      # com.google.gms.google-services BẮT BUỘC phải có, thiếu là build hỏng.
+      - name: Dung lai google-services.json
+        script: |
+          set -e
+          cd $FLUTTER_PROJECT_DIR
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "THIEU bien GOOGLE_SERVICES_JSON — build Android se hong."
+            echo "Vao Codemagic > Environment variables, them bien nay (base64 cua google-services.json)."
+            exit 1
+          fi
+          echo "$GOOGLE_SERVICES_JSON" | base64 --decode > android/app/google-services.json
+          echo "Da tao google-services.json"
 
       - name: Cai dat dependencies
         script: |
