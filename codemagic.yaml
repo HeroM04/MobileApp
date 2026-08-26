@@ -45,7 +45,15 @@ workflows:
         script: |
           cd $FLUTTER_PROJECT_DIR
           if [ -n "$GOOGLE_SERVICE_INFO_PLIST" ]; then
-            echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > ios/Runner/GoogleService-Info.plist
+            # Nhan ca hai kieu dan: chuoi base64 HOAC noi dung plist thuan
+            if [ "$(printf '%s' "$GOOGLE_SERVICE_INFO_PLIST" | head -c1)" = "<" ]; then
+              printf '%s' "$GOOGLE_SERVICE_INFO_PLIST" > ios/Runner/GoogleService-Info.plist
+            else
+              printf '%s' "$GOOGLE_SERVICE_INFO_PLIST" | tr -d '\r\n ' | base64 --decode > ios/Runner/GoogleService-Info.plist 2>/dev/null \
+                || printf '%s' "$GOOGLE_SERVICE_INFO_PLIST" | tr -d '\r\n ' | base64 -D > ios/Runner/GoogleService-Info.plist
+            fi
+            grep -q "BUNDLE_ID" ios/Runner/GoogleService-Info.plist \
+              || { echo "LOI: tep tao ra khong phai GoogleService-Info.plist hop le."; exit 1; }
             echo "Da tao GoogleService-Info.plist"
           else
             echo "CANH BAO: thieu GOOGLE_SERVICE_INFO_PLIST, iOS se khong co thong bao day"
@@ -175,7 +183,15 @@ workflows:
         script: |
           cd $FLUTTER_PROJECT_DIR
           if [ -n "$GOOGLE_SERVICE_INFO_PLIST" ]; then
-            echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > ios/Runner/GoogleService-Info.plist
+            # Nhan ca hai kieu dan: chuoi base64 HOAC noi dung plist thuan
+            if [ "$(printf '%s' "$GOOGLE_SERVICE_INFO_PLIST" | head -c1)" = "<" ]; then
+              printf '%s' "$GOOGLE_SERVICE_INFO_PLIST" > ios/Runner/GoogleService-Info.plist
+            else
+              printf '%s' "$GOOGLE_SERVICE_INFO_PLIST" | tr -d '\r\n ' | base64 --decode > ios/Runner/GoogleService-Info.plist 2>/dev/null \
+                || printf '%s' "$GOOGLE_SERVICE_INFO_PLIST" | tr -d '\r\n ' | base64 -D > ios/Runner/GoogleService-Info.plist
+            fi
+            grep -q "BUNDLE_ID" ios/Runner/GoogleService-Info.plist \
+              || { echo "LOI: tep tao ra khong phai GoogleService-Info.plist hop le."; exit 1; }
             echo "Da tao GoogleService-Info.plist"
           else
             echo "CANH BAO: thieu GOOGLE_SERVICE_INFO_PLIST, build thu van chay binh thuong"
@@ -272,10 +288,26 @@ workflows:
           cd $FLUTTER_PROJECT_DIR
           if [ -z "$GOOGLE_SERVICES_JSON" ]; then
             echo "THIEU bien GOOGLE_SERVICES_JSON — build Android se hong."
-            echo "Vao Codemagic > Environment variables, them bien nay (base64 cua google-services.json)."
+            echo "Vao Codemagic > Environment variables, them bien nay."
             exit 1
           fi
-          echo "$GOOGLE_SERVICES_JSON" | base64 --decode > android/app/google-services.json
+          # Nhan ca hai kieu dan: chuoi base64 HOAC noi dung JSON thuan.
+          # Dan nham kieu la loi de mac nhat, va thong bao cua base64
+          # ("error decoding base64 input stream") khong noi ro nguyen nhan.
+          if [ "$(printf '%s' "$GOOGLE_SERVICES_JSON" | head -c1)" = "{" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "Nhan dang: noi dung JSON thuan"
+          else
+            printf '%s' "$GOOGLE_SERVICES_JSON" | tr -d '\r\n ' | base64 --decode > android/app/google-services.json 2>/dev/null \
+              || printf '%s' "$GOOGLE_SERVICES_JSON" | tr -d '\r\n ' | base64 -D > android/app/google-services.json
+            echo "Nhan dang: chuoi base64"
+          fi
+          # Tu kiem chung thay vi tin tuong — hong o day de sua hon la hong o Gradle
+          if ! grep -q '"package_name"' android/app/google-services.json; then
+            echo "LOI: tep tao ra khong phai google-services.json hop le."
+            echo "Kiem tra lai gia tri bien GOOGLE_SERVICES_JSON tren Codemagic."
+            exit 1
+          fi
           echo "Da tao google-services.json"
 
       - name: Cai dat dependencies
