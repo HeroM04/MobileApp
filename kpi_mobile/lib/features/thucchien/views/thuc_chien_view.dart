@@ -146,73 +146,136 @@ class _ThucChienViewState extends State<ThucChienView> {
       final name = user['fullName'] ?? 'Không rõ';
       final dept = user['departmentName'] ?? 'Không rõ';
 
-      final double startX = 24.0;
-      // Anchor watermark near the bottom
-      double startY = originalImage.height - 450.0;
-      if (startY < 0) startY = 24.0;
+      // ── Cỡ chữ tính theo BỀ RỘNG ẢNH, không ghi cứng ────────────────────
+      //
+      // Khung vẽ đã bị thu nhỏ ở trên (canvas.scale) để ảnh ra 1200px, nên mọi
+      // thứ vẽ sau đó — kể cả chữ — bị co theo đúng tỷ lệ đó. Ghi cứng cỡ 22 thì
+      // trên ảnh 4000px chữ chỉ còn khoảng 6px, mà máy chụp càng nét chữ càng
+      // bé: mỗi điện thoại ra một cỡ khác nhau.
+      //
+      // Lấy cỡ chữ theo phần trăm kích thước ảnh thì phần co lại triệt tiêu
+      // đúng bằng phần phóng to, chữ hiện ra bằng nhau trên mọi máy. Các con số
+      // dưới đây cho chữ to gấp khoảng ba lần trước.
+      //
+      // Mốc là CẠNH NGẮN chứ không phải bề rộng: ảnh chụp ngang có bề rộng lớn
+      // hơn nhiều so với chiều cao, lấy theo bề rộng thì khối chữ chiếm tới bảy
+      // phần mười khung hình. Theo cạnh ngắn thì ảnh dọc hay ngang đều cân.
+      final double w = originalImage.width.toDouble();
+      final double h = originalImage.height.toDouble();
+      final double canhNgan = w < h ? w : h;
+      double cx(double phanTram) => canhNgan * phanTram; // cỡ chữ
+      final double le = cx(0.022);                       // lề trái/phải
+      final double cach = cx(0.016);                     // khoảng cách giữa các khối
+
+      final bongDam = [Shadow(color: Colors.black, blurRadius: cx(0.006))];
 
       // 1. LOGO TRÍ LONG LAND
-      final logoSpan = TextSpan(
-        text: 'TRÍ LONG LAND\n',
-        style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 32, fontWeight: FontWeight.bold, shadows: [Shadow(color: Colors.black, blurRadius: 6)]),
-        children: const [
-          TextSpan(text: 'KIẾN TẠO SỰ BỀN VỮNG', style: TextStyle(color: Colors.white, fontSize: 16, letterSpacing: 1.2)),
-        ],
-      );
-      final logoPainter = TextPainter(text: logoSpan, textDirection: TextDirection.ltr);
-      logoPainter.layout();
+      final logoPainter = TextPainter(
+        text: TextSpan(
+          text: 'TRÍ LONG LAND\n',
+          style: TextStyle(
+              color: const Color(0xFFD4AF37),
+              fontSize: cx(0.030),
+              fontWeight: FontWeight.bold,
+              shadows: bongDam),
+          children: [
+            TextSpan(
+                text: 'KIẾN TẠO SỰ BỀN VỮNG',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: cx(0.015),
+                    letterSpacing: cx(0.0012),
+                    shadows: bongDam)),
+          ],
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      // 2. GIỜ | NGÀY — thông tin quan trọng nhất nên để to nhất
+      final timePainter = TextPainter(
+        text: TextSpan(
+          children: [
+            TextSpan(text: '$hourStr ', style: TextStyle(color: Colors.white, fontSize: cx(0.052), fontWeight: FontWeight.bold)),
+            TextSpan(text: '| ', style: TextStyle(color: const Color(0xFFD4AF37), fontSize: cx(0.042), fontWeight: FontWeight.w300)),
+            TextSpan(text: '$dateStr\n', style: TextStyle(color: Colors.white, fontSize: cx(0.021))),
+            TextSpan(text: '         $weekdayStr', style: TextStyle(color: Colors.white, fontSize: cx(0.020))),
+          ],
+          style: TextStyle(shadows: bongDam, height: 1.15),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      // 3. ĐỊA CHỈ
+      final addressPainter = TextPainter(
+        text: TextSpan(
+          text: address,
+          style: TextStyle(color: Colors.white, fontSize: cx(0.022), height: 1.3, shadows: bongDam),
+        ),
+        textDirection: TextDirection.ltr,
+        maxLines: 3,
+      )..layout(maxWidth: w - le * 2);
+
+      // 4. KHỐI THÔNG TIN NHÂN SỰ
+      final infoPainter = TextPainter(
+        text: TextSpan(
+          text: 'Công ty: Trí Long Land\nHọ tên: $name\nPhòng: $dept',
+          style: TextStyle(color: Colors.white, fontSize: cx(0.020), height: 1.6, shadows: bongDam),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      // Đo xong mới biết khối chữ cao bao nhiêu rồi mới neo từ đáy ảnh lên.
+      // Trước đây neo bằng một con số cố định (450px) nên chữ to lên là tràn
+      // khỏi ảnh hoặc thừa một mảng trống.
+      final double demTrong = cx(0.020); // đệm trong khối thông tin
+      final double tongCao = logoPainter.height + cach
+          + timePainter.height + cach
+          + addressPainter.height + cach
+          + infoPainter.height + demTrong * 2;
+
+      double startY = originalImage.height - tongCao - le;
+      if (startY < le) startY = le;
+      final double startX = le;
+
       logoPainter.paint(canvas, Offset(startX, startY));
-      startY += logoPainter.height + 20;
+      startY += logoPainter.height + cach;
 
-      // 2. TIME | DATE
-      final timeSpan = TextSpan(
-        children: [
-          TextSpan(text: '$hourStr ', style: const TextStyle(color: Colors.white, fontSize: 64, fontWeight: FontWeight.bold)),
-          TextSpan(text: '| ', style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 50, fontWeight: FontWeight.w300)),
-          TextSpan(text: '$dateStr\n', style: const TextStyle(color: Colors.white, fontSize: 24)),
-          TextSpan(text: '         $weekdayStr', style: const TextStyle(color: Colors.white, fontSize: 22)),
-        ],
-        style: const TextStyle(shadows: [Shadow(color: Colors.black, blurRadius: 6)], height: 1.1),
-      );
-      final timePainter = TextPainter(text: timeSpan, textDirection: TextDirection.ltr);
-      timePainter.layout();
       timePainter.paint(canvas, Offset(startX, startY));
-      startY += timePainter.height + 20;
+      startY += timePainter.height + cach;
 
-      // 3. ADDRESS
-      final addressSpan = TextSpan(
-        text: address,
-        style: const TextStyle(color: Colors.white, fontSize: 22, shadows: [Shadow(color: Colors.black, blurRadius: 4)]),
-      );
-      final addressPainter = TextPainter(text: addressSpan, textDirection: TextDirection.ltr, maxLines: 3);
-      addressPainter.layout(maxWidth: originalImage.width - 48.0);
       addressPainter.paint(canvas, Offset(startX, startY));
-      startY += addressPainter.height + 20;
+      startY += addressPainter.height + cach;
 
-      // 4. GREY BOX (Company, Name, Room)
       final boxPaint = Paint()..color = Colors.white.withOpacity(0.25);
-      final infoSpan = TextSpan(
-        text: 'Công ty: Trí Long Land\nHọ tên: $name\nPhòng: $dept',
-        style: const TextStyle(color: Colors.white, fontSize: 24, height: 1.6, shadows: [Shadow(color: Colors.black, blurRadius: 3)]),
+      final boxRect = RRect.fromLTRBR(
+        startX, startY,
+        startX + infoPainter.width + demTrong * 2,
+        startY + infoPainter.height + demTrong,
+        Radius.circular(cx(0.012)),
       );
-      final infoPainter = TextPainter(text: infoSpan, textDirection: TextDirection.ltr);
-      infoPainter.layout();
-      
-      final boxRect = RRect.fromLTRBR(startX, startY, startX + infoPainter.width + 40, startY + infoPainter.height + 24, const Radius.circular(12));
       canvas.drawRRect(boxRect, boxPaint);
-      infoPainter.paint(canvas, Offset(startX + 20, startY + 12));
+      infoPainter.paint(canvas, Offset(startX + demTrong, startY + demTrong / 2));
 
-      // 5. TIMEMARK (Bottom Right)
-      final tmSpan = TextSpan(
-        text: 'Timemark\n',
-        style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 24, fontWeight: FontWeight.bold, shadows: [Shadow(color: Colors.black, blurRadius: 4)]),
-        children: const [
-          TextSpan(text: '100% Chân thực', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.normal)),
-        ],
-      );
-      final tmPainter = TextPainter(text: tmSpan, textDirection: TextDirection.ltr, textAlign: TextAlign.right);
-      tmPainter.layout();
-      tmPainter.paint(canvas, Offset(originalImage.width - tmPainter.width - 30, originalImage.height - tmPainter.height - 30));
+      // 5. TIMEMARK (góc dưới bên phải)
+      final tmPainter = TextPainter(
+        text: TextSpan(
+          text: 'Timemark\n',
+          style: TextStyle(
+              color: const Color(0xFFD4AF37),
+              fontSize: cx(0.020),
+              fontWeight: FontWeight.bold,
+              shadows: bongDam),
+          children: [
+            TextSpan(
+                text: '100% Chân thực',
+                style: TextStyle(color: Colors.white, fontSize: cx(0.015), shadows: bongDam)),
+          ],
+        ),
+        textDirection: TextDirection.ltr,
+        textAlign: TextAlign.right,
+      )..layout();
+      tmPainter.paint(canvas,
+          Offset(w - tmPainter.width - le, originalImage.height - tmPainter.height - le));
 
       final picture = recorder.endRecording();
       final img = await picture.toImage((originalImage.width * scale).toInt(), (originalImage.height * scale).toInt());
