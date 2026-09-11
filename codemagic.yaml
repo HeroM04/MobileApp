@@ -4,9 +4,10 @@
 #  Dùng khi máy phát triển chạy Windows (không build được iOS).
 #  Cách dùng: xem HUONG-DAN-DEPLOY-IOS.md, mục "Cách A".
 #
-#  Có 2 workflow:
-#    - ios-testflight : build + tự đẩy lên TestFlight (dùng khi phát hành)
-#    - ios-unsigned   : build thử KHÔNG cần tài khoản Apple (kiểm tra code)
+#  Có 3 workflow:
+#    - ios-testflight  : build + tự đẩy lên TestFlight (dùng khi phát hành)
+#    - ios-unsigned    : build thử KHÔNG cần tài khoản Apple (kiểm tra code)
+#    - android-firebase: build APK + phát hành cho nhân viên qua Firebase
 # ============================================================
 
 workflows:
@@ -233,16 +234,34 @@ workflows:
   #         "vn.trilongland.kpi", tạo nhóm tester tên "sale".
   #
   #      b) Codemagic > App settings > Environment variables, tất cả đặt vào
-  #         nhóm "android_signing" (Codemagic KHÔNG có integration Firebase —
-  #         service account nạp bằng biến môi trường):
+  #         nhóm "android_signing", đánh dấu Secure (Codemagic KHÔNG có
+  #         integration Firebase — service account nạp bằng biến môi trường).
+  #         Đủ 6 biến, thiếu biến nào build đỏ biến đó:
   #
+  #           GOOGLE_SERVICES_JSON     = DÁN TOÀN BỘ nội dung file
+  #                                      kpi_mobile/android/app/google-services.json
+  #                                      (tải lại được từ Firebase > Project settings
+  #                                      > Your apps > google-services.json)
   #           FIREBASE_SERVICE_ACCOUNT = DÁN TOÀN BỘ nội dung file JSON tải từ
   #                                      Firebase > Settings > Service accounts
-  #                                      > Generate new private key   (Secure)
-  #           CM_KEYSTORE              = file .jks (chọn kiểu "Secure file")
-  #           CM_KEYSTORE_PASSWORD     = mật khẩu keystore             (Secure)
-  #           CM_KEY_ALIAS             = tên alias                     (Secure)
-  #           CM_KEY_PASSWORD          = mật khẩu alias                (Secure)
+  #                                      > Generate new private key
+  #           CM_KEYSTORE              = file release.jks đổi sang chuỗi base64
+  #                                      (Codemagic không nhận file nhị phân qua
+  #                                      biến môi trường). Trên Windows, mở
+  #                                      PowerShell tại thư mục kpi_mobile/android:
+  #                                        [Convert]::ToBase64String([IO.File]::ReadAllBytes("release.jks")) | Set-Clipboard
+  #                                      rồi dán. KHÔNG dùng certutil -encode: nó
+  #                                      chèn dòng BEGIN/END CERTIFICATE làm hỏng.
+  #           CM_KEYSTORE_PASSWORD     = mật khẩu keystore
+  #           CM_KEY_ALIAS             = tên alias
+  #           CM_KEY_PASSWORD          = mật khẩu alias
+  #
+  #         Ba giá trị cuối lấy trong kpi_mobile/android/key.properties ở máy dev.
+  #
+  #         PHẢI dùng đúng file release.jks đang có ở máy dev (tạo 17/08/2026),
+  #         không tạo keystore mới: máy nhân viên đã cài bản ký bằng khóa đó,
+  #         đổi khóa là Android từ chối cài đè ("Ứng dụng chưa được cài đặt"),
+  #         phải gỡ ra cài lại và mất dữ liệu đăng nhập.
   #
   #      (App ID không phải bí mật nên ghi thẳng ở phần vars bên dưới.)
   # ----------------------------------------------------------
@@ -270,13 +289,37 @@ workflows:
       - name: Nap khoa ky so
         script: |
           set -e
-          # Ghi keystore ra file và tạo key.properties để Gradle đọc
-          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/$FLUTTER_PROJECT_DIR/android/release.jks"
+          for v in CM_KEYSTORE CM_KEYSTORE_PASSWORD CM_KEY_ALIAS CM_KEY_PASSWORD; do
+            if [ -z "$(eval echo \$$v)" ]; then
+              echo "THIEU bien $v — vao Codemagic > Environment variables, nhom android_signing."
+              exit 1
+            fi
+          done
+
+          JKS="$CM_BUILD_DIR/$FLUTTER_PROJECT_DIR/android/release.jks"
+          # Xoá xuống dòng/khoảng trắng lỡ dính khi dán chuỗi base64, giống cách
+          # xử lý GOOGLE_SERVICES_JSON bên dưới — echo thuần sẽ hỏng vì lý do đó.
+          printf '%s' "$CM_KEYSTORE" | tr -d '\r\n ' | base64 --decode > "$JKS" 2>/dev/null \
+            || printf '%s' "$CM_KEYSTORE" | tr -d '\r\n ' | base64 -D > "$JKS"
+
+          # Thử mở keystore NGAY BÂY GIỜ bằng đúng mật khẩu và alias sẽ dùng để ký.
+          # Sai mật khẩu hay sai alias thì báo ở đây, rõ ràng, sau 2 giây — thay vì
+          # để Gradle chết sau 5 phút với một dòng "Keystore was tampered with".
+          if ! keytool -list -keystore "$JKS" -storepass "$CM_KEYSTORE_PASSWORD" -alias "$CM_KEY_ALIAS" >/dev/null 2>&1; then
+            echo "LOI: khong mo duoc keystore. Mot trong ba thu sau sai:"
+            echo "  - CM_KEYSTORE khong phai base64 cua dung file release.jks"
+            echo "  - CM_KEYSTORE_PASSWORD sai"
+            echo "  - CM_KEY_ALIAS khong co trong keystore"
+            echo "Doi chieu voi kpi_mobile/android/key.properties o may dev."
+            exit 1
+          fi
+          echo "Keystore mo duoc, alias '$CM_KEY_ALIAS' ton tai."
+
           cat > "$CM_BUILD_DIR/$FLUTTER_PROJECT_DIR/android/key.properties" <<EOF
           storePassword=$CM_KEYSTORE_PASSWORD
           keyPassword=$CM_KEY_PASSWORD
           keyAlias=$CM_KEY_ALIAS
-          storeFile=$CM_BUILD_DIR/$FLUTTER_PROJECT_DIR/android/release.jks
+          storeFile=$JKS
           EOF
           echo "Da tao key.properties"
 
@@ -330,19 +373,36 @@ workflows:
 
       - name: Kiem tra chu ky APK
         script: |
+          set -e
           cd $FLUTTER_PROJECT_DIR
           APK=build/app/outputs/flutter-apk/app-release.apk
           echo "Kich thuoc: $(du -h $APK | cut -f1)"
 
           # Xác nhận APK ký bằng khóa release, KHÔNG phải khóa debug.
+          #
+          # build.gradle.kts có đường lùi: thiếu key.properties thì lặng lẽ ký bằng
+          # khóa debug. Bản như vậy vẫn build xanh, vẫn lên Firebase, nhưng nhân
+          # viên cài đè lên bản cũ sẽ bị Android chặn vì khác chữ ký — lỗi chỉ lộ
+          # ra trên máy nhân viên, không lộ ở đây. Nên bước này phải CHẶN, không
+          # chỉ in ra rồi cho qua.
           # Tìm apksigner linh hoạt vì đường dẫn SDK khác nhau giữa các máy build.
           SIGNER=$(find "${ANDROID_SDK_ROOT:-$ANDROID_HOME}" -name apksigner -type f 2>/dev/null | sort -r | head -1)
-          if [ -n "$SIGNER" ]; then
-            "$SIGNER" verify --print-certs "$APK" | grep -i "certificate DN" \
-              || echo "(khong doc duoc thong tin chu ky)"
-          else
-            echo "(khong tim thay apksigner - bo qua buoc kiem tra)"
+          if [ -z "$SIGNER" ]; then
+            echo "LOI: khong tim thay apksigner trong Android SDK, khong kiem duoc chu ky."
+            exit 1
           fi
+          DN=$("$SIGNER" verify --print-certs "$APK" | grep -i "certificate DN" || true)
+          echo "$DN"
+          if [ -z "$DN" ]; then
+            echo "LOI: APK khong co chu ky doc duoc."
+            exit 1
+          fi
+          if echo "$DN" | grep -qi "Android Debug"; then
+            echo "LOI: APK dang ky bang KHOA DEBUG. key.properties khong duoc Gradle doc."
+            echo "Kiem tra lai buoc 'Nap khoa ky so' o tren."
+            exit 1
+          fi
+          echo "Chu ky release hop le."
 
     artifacts:
       - kpi_mobile/build/app/outputs/flutter-apk/app-release.apk
