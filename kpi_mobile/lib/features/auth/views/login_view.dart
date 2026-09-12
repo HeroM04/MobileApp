@@ -282,66 +282,13 @@ class _LoginViewState extends State<LoginView> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-
-                  // ── TÀI KHOẢN CHẠY THỬ / QUICK LOGIN CHIPS ──────────────────
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(18.0),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(0xFFE2E8F0),
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: const [
-                            Icon(Icons.people_outline_rounded, color: Color(0xFFD4AF37), size: 18),
-                            SizedBox(width: 8),
-                            Text(
-                              "Tài khoản demo (Nhấn chọn nhanh)",
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F2C59),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _buildDemoAccountChip("Admin", "0900000001"),
-                            _buildDemoAccountChip("Trưởng Phòng", "0900000002"),
-                            _buildDemoAccountChip("Sale A", "0900000003"),
-                            _buildDemoAccountChip("Sale B", "0900000004"),
-                            _buildDemoAccountChip("Văn Phòng", "0900000005"),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
                   const SizedBox(height: 36),
 
                   // ── CHÚ THÍCH HỆ THỐNG ─────────────────────────────────────
+                  // Không ghi số phiên bản ở đây: dòng cũ ghi cứng "2.0.0" trong khi
+                  // pubspec là 1.2.0 — số sai còn tệ hơn không có số.
                   const Text(
-                    "Phiên bản Mobile 2.0.0 (Light Theme)",
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF94A3B8),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    "© 2026 Công Ty Cổ Phần Bất Động Sản Trí Long",
+                    "© 2026 Công ty TNHH Bất động sản Trí Long",
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -353,44 +300,6 @@ class _LoginViewState extends State<LoginView> {
                 ],
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDemoAccountChip(String label, String phone) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _phoneController.text = phone;
-          _passwordController.text = "123456";
-        });
-        snack(
-          "Chọn tài khoản",
-          "Đã điền tài khoản $label ($phone)",
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: const Color(0xFF0F2C59),
-          colorText: Colors.white,
-          duration: const Duration(milliseconds: 1500),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: const Color(0xFFD4AF37).withOpacity(0.4),
-            width: 1,
-          ),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Color(0xFF0F2C59),
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
           ),
         ),
       ),
