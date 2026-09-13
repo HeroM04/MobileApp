@@ -233,40 +233,69 @@ class AuthController extends GetxController {
   }
 
   // 3. Hàm đăng xuất (Logout)
-  Future<void> logout() async {
-    // Gỡ mã thiết bị trước khi mất token, để máy chủ thôi gửi thông báo tới
-    // máy này — tránh trường hợp người khác mượn máy vẫn nhận thông báo cũ.
-    await PushService().huyDangKy();
-    try {
-      if (!ApiClient.isDebugMode) {
-        final refreshToken = await _secureStorage.read(key: 'refreshToken');
-        if (refreshToken != null) {
-          // Gọi API logout ở backend để vô hiệu hóa token
-          try {
-            await ApiClient.dio.post('/auth/logout', data: {
-              'refreshToken': refreshToken,
-            });
-          } catch (err) {
-            print("Lỗi khi gọi API logout: $err");
-          }
-        }
-      }
-    } catch (e) {
-      print("Lỗi logout API: $e");
-    } finally {
-      // Dọn dẹp cả hai phân vùng lưu trữ
-      await _secureStorage.delete(key: 'accessToken');
-      await _secureStorage.delete(key: 'refreshToken');
+  //
+  // Thứ tự: dọn máy và về màn hình đăng nhập NGAY, rồi mới báo máy chủ trong nền.
+  //
+  // Trước đây làm ngược lại — gọi máy chủ xong mới dọn — nên người dùng bấm
+  // Đăng xuất mà không thấy gì xảy ra:
+  //   - Máy chủ Render đang ngủ: hai lượt gọi, mỗi lượt chờ tới 110 giây.
+  //   - Token đã hết hạn (mở app sáng hôm sau): mỗi lượt gọi bị 401 → interceptor
+  //     đi làm mới token → thất bại → interceptor gọi lại logout() → lồng vào
+  //     chính lượt đăng xuất đang dở, mỗi tầng lại gọi mạng thêm lần nữa.
+  // Người dùng muốn rời đi; máy chủ có thu hồi được token hay không là việc phụ,
+  // không được bắt họ chờ.
+  bool _dangDangXuat = false;
 
+  Future<void> logout() async {
+    if (_dangDangXuat) return;   // chặn gọi lồng từ interceptor khi 401
+    _dangDangXuat = true;
+
+    // 1) Giữ lại token để báo máy chủ, xong dọn sạch máy
+    String? accessToken;
+    String? refreshToken;
+    try {
+      accessToken = await _secureStorage.read(key: 'accessToken');
+      refreshToken = await _secureStorage.read(key: 'refreshToken');
+    } catch (_) {}
+    try { await _secureStorage.delete(key: 'accessToken'); } catch (_) {}
+    try { await _secureStorage.delete(key: 'refreshToken'); } catch (_) {}
+    try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear(); // XÓA SẠCH toàn bộ cache thay vì xóa từng key
+    } catch (_) {}
 
-      currentUser.clear();
-      isLoggedIn.value = false;
+    currentUser.clear();
+    isLoggedIn.value = false;
 
-      Get.offAll(() => LoginView());
-      // Hiển thị thông báo sau khi đã chuyển trang để tránh lỗi rebuild widget cũ
-      snack("Thông báo", "Đã đăng xuất tài khoản!");
+    Get.offAll(() => LoginView());
+    // Hiển thị thông báo sau khi đã chuyển trang để tránh lỗi rebuild widget cũ
+    snack("Thông báo", "Đã đăng xuất tài khoản!");
+    _dangDangXuat = false;
+
+    // 2) Báo máy chủ trong nền — không await, không chặn ai
+    _baoMayChuDangXuat(accessToken, refreshToken);
+  }
+
+  /// Gỡ mã thiết bị (thôi nhận thông báo) và thu hồi refresh token ở máy chủ.
+  /// Dùng Dio riêng KHÔNG có interceptor: token hết hạn thì 401 rồi thôi, không
+  /// kéo theo làm mới token hay gọi lại logout. Mỗi việc chờ tối đa vài giây.
+  Future<void> _baoMayChuDangXuat(String? accessToken, String? refreshToken) async {
+    if (ApiClient.isDebugMode || accessToken == null) return;
+    final dio = dio_pkg.Dio(dio_pkg.BaseOptions(
+      baseUrl: ApiClient.baseUrl,
+      connectTimeout: const Duration(seconds: 8),
+      receiveTimeout: const Duration(seconds: 8),
+      sendTimeout: const Duration(seconds: 8),
+      headers: {'Authorization': 'Bearer $accessToken'},
+    ));
+    await PushService().huyDangKy(dio: dio);
+    if (refreshToken != null) {
+      try {
+        await dio.post('/auth/logout', data: {'refreshToken': refreshToken});
+      } catch (_) {
+        // Không thu hồi được cũng không sao: token đã bị xóa khỏi máy,
+        // refresh token tự hết hạn sau 7 ngày.
+      }
     }
   }
   // 4. Hàm đổi mật khẩu (Change Password)

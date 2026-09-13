@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -142,12 +143,21 @@ class PushService {
   }
 
   /// Gỡ mã thiết bị khi đăng xuất, để máy chủ thôi gửi thông báo tới máy này.
-  Future<void> huyDangKy() async {
+  ///
+  /// [dio] là Dio do nơi gọi đưa vào — lúc đăng xuất phải dùng Dio KHÔNG có
+  /// interceptor, vì token hết hạn thì interceptor sẽ đi làm mới rồi lại gọi
+  /// logout, lồng vào chính việc đăng xuất đang dở. Không đưa thì dùng Dio chung.
+  ///
+  /// Mọi bước đều có giới hạn thời gian: lấy mã FCM có thể treo trên máy không
+  /// có dịch vụ Google, còn máy chủ ngủ thì gọi mạng chờ tới cả phút. Đăng xuất
+  /// là việc của người dùng, không được để họ đứng chờ vì mấy thứ này.
+  Future<void> huyDangKy({Dio? dio}) async {
     try {
-      final token = await _fcm.getToken();
+      final token = await _fcm.getToken().timeout(const Duration(seconds: 5));
       if (token != null) {
-        await ApiClient.dio.delete('/devices/register',
-            data: {'token': token});
+        await (dio ?? ApiClient.dio)
+            .delete('/devices/register', data: {'token': token})
+            .timeout(const Duration(seconds: 10));
       }
     } catch (_) {
       // Đăng xuất không nên vì lỗi này mà kẹt lại.
