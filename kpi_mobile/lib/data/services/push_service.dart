@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -30,7 +31,20 @@ class PushService {
   factory PushService() => _instance;
   PushService._();
 
-  final _fcm = FirebaseMessaging.instance;
+  // KHÔNG lấy FirebaseMessaging.instance ngay lúc dựng lớp: nếu Firebase chưa
+  // khởi tạo (bản build thiếu GoogleService-Info.plist / google-services.json)
+  // thì dòng đó ném [core/no-app] ngay tại chỗ gọi PushService() — tức là ở
+  // giữa hàm đăng nhập — và cả việc đăng nhập đổ theo. Thông báo đẩy là phụ,
+  // không được làm hỏng đăng nhập. Firebase không có thì mọi việc ở đây bỏ qua.
+  FirebaseMessaging? _fcmCache;
+  FirebaseMessaging? get _fcm {
+    if (_fcmCache != null) return _fcmCache;
+    if (Firebase.apps.isEmpty) return null;
+    return _fcmCache = FirebaseMessaging.instance;
+  }
+
+  /// Firebase có sẵn để dùng không.
+  bool get sanSang => _fcm != null;
   final _local = FlutterLocalNotificationsPlugin();
 
   bool _daKhoiTao = false;
@@ -47,6 +61,10 @@ class PushService {
   /// Gọi một lần sau khi đăng nhập xong. Xin quyền, lấy mã thiết bị và gửi lên
   /// máy chủ để về sau máy chủ biết đẩy thông báo tới đúng máy này.
   Future<void> khoiDong() async {
+    if (!sanSang) {
+      if (kDebugMode) print('[Push] Firebase chưa khởi tạo — bỏ qua thông báo đẩy');
+      return;
+    }
     if (_daKhoiTao) {
       await _guiTokenLenMayChu(); // đăng nhập lại thì gắn token vào tài khoản mới
       return;
@@ -56,7 +74,7 @@ class PushService {
     try {
       // iOS bắt buộc hỏi quyền; Android 13+ cũng hỏi. Người dùng từ chối thì
       // vẫn chạy bình thường, chỉ là không nhận được thông báo đẩy.
-      await _fcm.requestPermission(alert: true, badge: true, sound: true);
+      await _fcm!.requestPermission(alert: true, badge: true, sound: true);
 
       await _local
           .resolvePlatformSpecificImplementation<
@@ -80,7 +98,7 @@ class PushService {
       FirebaseMessaging.onMessageOpenedApp.listen((_) => _moManHinhThongBao());
 
       // Mã thiết bị đổi thì gửi lại ngay.
-      _fcm.onTokenRefresh.listen((token) => _guiToken(token));
+      _fcm!.onTokenRefresh.listen((token) => _guiToken(token));
 
       await _guiTokenLenMayChu();
     } catch (e) {
@@ -91,7 +109,7 @@ class PushService {
   Future<void> _guiTokenLenMayChu() async {
     try {
       // iOS cần có APNs token trước khi lấy được FCM token.
-      final token = await _fcm.getToken();
+      final token = await _fcm?.getToken();
       if (token != null) await _guiToken(token);
     } catch (e) {
       if (kDebugMode) print('[Push] Không lấy được token: $e');
@@ -153,7 +171,9 @@ class PushService {
   /// là việc của người dùng, không được để họ đứng chờ vì mấy thứ này.
   Future<void> huyDangKy({Dio? dio}) async {
     try {
-      final token = await _fcm.getToken().timeout(const Duration(seconds: 5));
+      final fcm = _fcm;
+      if (fcm == null) return;
+      final token = await fcm.getToken().timeout(const Duration(seconds: 5));
       if (token != null) {
         await (dio ?? ApiClient.dio)
             .delete('/devices/register', data: {'token': token})
