@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart' as dio_pkg;
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_error.dart';
 import '../../../data/services/push_service.dart';
 import '../../home/controllers/kpi_controller.dart';
 import '../../shell/views/shell_view.dart';
@@ -165,8 +166,8 @@ class AuthController extends GetxController {
             'password': password,
           },
           options: dio_pkg.Options(
-            sendTimeout: const Duration(seconds: 60),
-            receiveTimeout: const Duration(seconds: 60),
+            sendTimeout: const Duration(seconds: 90),
+            receiveTimeout: const Duration(seconds: 90),
           )
         );
 
@@ -215,18 +216,12 @@ class AuthController extends GetxController {
         }
       }
     } catch (e) {
-      String errorMessage = "Kết nối máy chủ thất bại";
-      if (e is dio_pkg.DioException) {
-        if (e.response != null && e.response?.data != null) {
-          final resData = e.response?.data;
-          if (resData is Map) {
-            errorMessage = resData['message'] ?? errorMessage;
-          } else if (resData is String && resData.isNotEmpty) {
-            errorMessage = resData;
-          }
-        }
-      }
-      snack("Lỗi kết nối", errorMessage);
+      // Trước đây mọi lỗi đều hiện "Lỗi kết nối" — sai mật khẩu cũng "lỗi kết nối",
+      // máy chủ đang dậy cũng "lỗi kết nối", app ném lỗi nội bộ cũng "lỗi kết nối".
+      // Người dùng không biết phải làm gì, người sửa không có manh mối.
+      final loi = describeApiFailure(e, action: 'đăng nhập');
+      final tieuDe = loi.kind == ApiFailureKind.user ? 'Đăng nhập thất bại' : loi.title;
+      snack(tieuDe, loi.message);
     } finally {
       isLoading.value = false;
     }
@@ -345,18 +340,8 @@ class AuthController extends GetxController {
         }
       }
     } catch (e) {
-      String errorMessage = "Lỗi đổi mật khẩu";
-      if (e is dio_pkg.DioException) {
-        if (e.response != null && e.response?.data != null) {
-          final resData = e.response?.data;
-          if (resData is Map) {
-            errorMessage = resData['message'] ?? errorMessage;
-          } else if (resData is String && resData.isNotEmpty) {
-            errorMessage = resData;
-          }
-        }
-      }
-      snack("Lỗi", errorMessage);
+      final loi = describeApiFailure(e, action: 'đổi mật khẩu');
+      snack(loi.kind == ApiFailureKind.user ? 'Không đổi được mật khẩu' : loi.title, loi.message);
     } finally {
       isLoading.value = false;
     }
