@@ -35,6 +35,64 @@ class ApiClient {
 
   static final Dio dio = _buildDio();
 
+  /// Lượt làm mới token đang chạy (nếu có). Mọi yêu cầu bị 401 trong lúc đó
+  /// cùng chờ lượt này, không tự mở lượt riêng.
+  static Future<String?>? _dangLamMoi;
+
+  /// Làm mới access token — CHỈ MỘT LƯỢT tại một thời điểm.
+  ///
+  /// Mở app sau hơn một giờ, năm sáu màn hình cùng gọi API, cùng bị 401. Trước
+  /// đây mỗi cái tự đi làm mới bằng cùng một refresh token; máy chủ xoay vòng
+  /// token nên cái đầu thành công và THU HỒI token cũ, các cái sau bị từ chối
+  /// "đã thu hồi" → app hiểu là hết phiên → đá người dùng ra đăng nhập lại.
+  /// Thành ra refresh token 7 ngày mà cứ hơn một giờ là phải đăng nhập lại.
+  ///
+  /// Giờ lượt đầu tiên mở một Future dùng chung; các lượt sau await cùng
+  /// Future đó và nhận cùng token mới. Trả về null khi không làm mới được.
+  static Future<String?> _lamMoiTokenMotLan() {
+    final dangChay = _dangLamMoi;
+    if (dangChay != null) return dangChay;
+    final moi = _lamMoiToken().whenComplete(() { _dangLamMoi = null; });
+    _dangLamMoi = moi;
+    return moi;
+  }
+
+  static Future<String?> _lamMoiToken() async {
+    final refreshToken = await _safeRead('refreshToken');
+    if (refreshToken == null) return null;
+    try {
+      // Dio riêng, không interceptor — không thì 401 của chính lượt refresh lại
+      // gọi refresh nữa, lặp vô tận.
+      final refreshDio = Dio(BaseOptions(
+        baseUrl: baseUrl,
+        connectTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(seconds: 90),
+      ));
+      final response = await refreshDio.post('/auth/refresh', data: {'refreshToken': refreshToken});
+      if (response.statusCode == 200 && response.data['status'] == 'SUCCESS') {
+        final data = response.data['data'];
+        final String newAccessToken = data['accessToken'];
+        final String newRefreshToken = data['refreshToken'];
+        await _secureStorage.write(key: 'accessToken', value: newAccessToken);
+        await _secureStorage.write(key: 'refreshToken', value: newRefreshToken);
+        return newAccessToken;
+      }
+      debugLog('Refresh token: máy chủ không cấp token mới (${response.statusCode})');
+    } on DioException catch (err) {
+      debugLog('Refresh token thất bại: ${err.type.name} ${err.response?.statusCode}');
+      // Chỉ đăng xuất khi máy chủ NÓI RÕ là token hỏng (4xx). Mất mạng hay
+      // máy chủ đang dậy (không có response / 5xx) thì giữ phiên, lần sau thử
+      // lại — đá người dùng ra vì rớt wifi 5 giây là vô lý.
+      final code = err.response?.statusCode ?? 0;
+      if (code >= 400 && code < 500 && getx.Get.isRegistered<AuthController>()) {
+        getx.Get.find<AuthController>().logout();
+      }
+    } catch (err) {
+      debugLog('Refresh token lỗi khác: $err');
+    }
+    return null;
+  }
+
   static Dio _buildDio() {
     final dioInstance = Dio(BaseOptions(
       baseUrl: baseUrl,
@@ -107,52 +165,33 @@ class ApiClient {
         onError: (DioException e, handler) async {
           // Tự động làm mới access token nếu gặp lỗi 401 Unauthorized
           if (!isDebugMode && e.response?.statusCode == 401) {
-            final refreshToken = await _safeRead('refreshToken');
-            if (refreshToken != null) {
+            final newAccessToken = await _lamMoiTokenMotLan();
+            if (newAccessToken != null) {
               try {
-                // Gọi API refresh token (dùng instance Dio mới tránh lặp vô tận interceptor)
-                final refreshDio = Dio(BaseOptions(baseUrl: baseUrl));
-                final response = await refreshDio.post('/auth/refresh', data: {
-                  'refreshToken': refreshToken,
-                });
+                // Gắn token mới và retry request gốc
+                e.requestOptions.headers['Authorization'] = 'Bearer $newAccessToken';
 
-                if (response.statusCode == 200 && response.data['status'] == 'SUCCESS') {
-                  final data = response.data['data'];
-                  final newAccessToken = data['accessToken'];
-                  final newRefreshToken = data['refreshToken'];
+                final cloneOptions = Options(
+                  method: e.requestOptions.method,
+                  headers: e.requestOptions.headers,
+                  extra: e.requestOptions.extra,
+                  responseType: e.requestOptions.responseType,
+                  contentType: e.requestOptions.contentType,
+                  validateStatus: e.requestOptions.validateStatus,
+                  receiveTimeout: e.requestOptions.receiveTimeout,
+                  sendTimeout: e.requestOptions.sendTimeout,
+                );
 
-                  // Lưu token mới vào Secure Storage
-                  await _secureStorage.write(key: 'accessToken', value: newAccessToken);
-                  await _secureStorage.write(key: 'refreshToken', value: newRefreshToken);
+                final retryResponse = await Dio().request(
+                  '${e.requestOptions.baseUrl}${e.requestOptions.path}',
+                  data: e.requestOptions.data,
+                  queryParameters: e.requestOptions.queryParameters,
+                  options: cloneOptions,
+                );
 
-                  // Gắn token mới và retry request gốc
-                  e.requestOptions.headers['Authorization'] = 'Bearer $newAccessToken';
-
-                  final cloneOptions = Options(
-                    method: e.requestOptions.method,
-                    headers: e.requestOptions.headers,
-                    extra: e.requestOptions.extra,
-                    responseType: e.requestOptions.responseType,
-                    contentType: e.requestOptions.contentType,
-                    validateStatus: e.requestOptions.validateStatus,
-                    receiveTimeout: e.requestOptions.receiveTimeout,
-                    sendTimeout: e.requestOptions.sendTimeout,
-                  );
-
-                  final retryResponse = await Dio().request(
-                    '${e.requestOptions.baseUrl}${e.requestOptions.path}',
-                    data: e.requestOptions.data,
-                    queryParameters: e.requestOptions.queryParameters,
-                    options: cloneOptions,
-                  );
-
-                  return handler.resolve(retryResponse);
-                }
-              } catch (refreshErr) {
-                debugLog('Refresh token thất bại: $refreshErr');
-                if (getx.Get.isRegistered<AuthController>()) {
-                  getx.Get.find<AuthController>().logout();
-                }
+                return handler.resolve(retryResponse);
+              } catch (retryErr) {
+                debugLog('Gọi lại sau khi làm mới token thất bại: $retryErr');
               }
             }
           }
