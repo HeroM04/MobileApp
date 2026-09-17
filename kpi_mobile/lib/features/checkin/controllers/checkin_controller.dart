@@ -108,17 +108,14 @@ class CheckinController extends GetxController {
         File watermarkedFile = await _addWatermark(imageFile, currentAddress);
         selectedImage.value = watermarkedFile;
 
-        // 5. Tính khoảng cách tới văn phòng (tọa độ + bán kính lấy theo phòng ban)
+        // 5. Tính khoảng cách tới văn phòng (tọa độ + bán kính lấy theo phòng ban).
+        //    Lấy cấu hình MỚI từ máy chủ trước: Admin đổi bán kính trên web thì
+        //    phải có tác dụng ngay, không phải chờ nhân viên đăng xuất đăng nhập lại.
+        await _taiCauHinhVanPhong();
         final office = _getOfficeConfig();
         double distance = _calculateDistanceToOffice(currentLat, currentLng);
-
-        snack(
-          "Thông tin GPS Chi Tiết",
-          "Cách cty: ${distance.toStringAsFixed(0)}m (cho phép ${office.radius.toStringAsFixed(0)}m)."
-          "\nGPS Bạn: $currentLat, $currentLng"
-          "\nGPS Cty: ${office.lat}, ${office.lng}",
-          duration: const Duration(seconds: 4),
-        );
+        // Không hiện khoảng cách hay tọa độ công ty cho nhân viên — chỉ báo kết
+        // quả chấm công. Số liệu GPS máy chủ vẫn ghi đầy đủ để Admin đối chiếu.
 
         if (distance > office.radius) {
           isOutOfRange.value = true;
@@ -311,6 +308,35 @@ class CheckinController extends GetxController {
     return (lat: lat, lng: lng, radius: radius);
   }
 
+  /// Tải tọa độ + bán kính văn phòng MỚI NHẤT từ máy chủ, ghi đè bản lưu lúc
+  /// đăng nhập. Máy chủ không trả lời kịp (3 giây) thì giữ bản cũ — chấm công
+  /// không được kẹt vì việc này, và máy chủ vẫn tự kiểm lại bằng số liệu của nó.
+  Future<void> _taiCauHinhVanPhong() async {
+    if (!Get.isRegistered<AuthController>()) return;
+    try {
+      final res = await ApiClient.dio
+          .get('/users/my-profile',
+              options: Options(receiveTimeout: const Duration(seconds: 3), sendTimeout: const Duration(seconds: 3)))
+          .timeout(const Duration(seconds: 4));
+      final data = res.data is Map ? res.data['data'] : null;
+      final user = data is Map ? data['user'] : null;
+      final dept = user is Map ? user['department'] : null;
+      if (dept is! Map) return;
+      final auth = Get.find<AuthController>();
+      final lat = (dept['officeLat'] as num?)?.toDouble();
+      final lng = (dept['officeLng'] as num?)?.toDouble();
+      final radius = (dept['allowedRadius'] as num?)?.toDouble();
+      if (lat != null && lng != null && lat != 0 && lng != 0) {
+        auth.currentUser['officeLat'] = lat;
+        auth.currentUser['officeLng'] = lng;
+      }
+      if (radius != null && radius > 0) auth.currentUser['allowedRadius'] = radius;
+      auth.currentUser.refresh();
+    } catch (_) {
+      // giữ bản lưu lúc đăng nhập
+    }
+  }
+
   double _calculateDistanceToOffice(double lat, double lng) {
     final office = _getOfficeConfig();
     return Geolocator.distanceBetween(lat, lng, office.lat, office.lng);
@@ -333,11 +359,12 @@ class CheckinController extends GetxController {
       }
 
       currentAddress = await _getAddressFromCoordinates(currentLat, currentLng);
+      await _taiCauHinhVanPhong();
       double distance = _calculateDistanceToOffice(currentLat, currentLng);
-      
-      snack("GPS", "Cách công ty: ${distance.toStringAsFixed(0)}m");
 
-      if (distance > 2000) {
+      // Trước đây so với 2000m ghi cứng, còn check-in so với bán kính phòng ban —
+      // hai cửa hai luật. Giờ cùng một bán kính.
+      if (distance > _getOfficeConfig().radius) {
         isOutOfRange.value = true;
         isLoading.value = false;
       } else {
