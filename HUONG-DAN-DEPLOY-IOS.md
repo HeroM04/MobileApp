@@ -150,4 +150,159 @@ Việc còn lại thuần về **tài khoản và hạ tầng build**:
 2. Chọn nơi build (khuyến nghị **Codemagic** — khỏi mua Mac).
 3. Build ra `.ipa` → đẩy lên **TestFlight** → mời nhân viên cài.
 
-*Cập nhật lần cuối: 2026-08-10*
+---
+
+## 7. ĐƯA LÊN APP STORE (làm sau khi TestFlight đã chạy ổn)
+
+### 7.1. Chọn hình thức phát hành trước khi nộp
+
+| Hình thức | Ai thấy được | Hết hạn? | Apple duyệt? |
+|---|---|---|---|
+| TestFlight (đang dùng) | Người có link | **Bản build hết hạn sau 90 ngày** | Beta review nhẹ |
+| **App Store — Unlisted (không niêm yết)** ⭐ | Chỉ ai có link trực tiếp; không tìm thấy khi search, không hiện ở bảng xếp hạng | Không | Duyệt đầy đủ như app thường |
+| App Store công khai | Tất cả mọi người | Không | Duyệt đầy đủ; **app chỉ dành cho nhân viên một công ty thường bị từ chối** với lý do "không phù hợp App Store, hãy dùng Apple Business Manager" |
+
+→ **Khuyến nghị: nộp duyệt như bình thường, đồng thời xin Unlisted.** Cùng một lần
+duyệt, nhưng khi được chấp thuận thì nhân viên cài từ link App Store (tự cập nhật,
+không hết hạn), người ngoài không tìm thấy, và Apple không vướng lý do "app nội bộ".
+
+Xin Unlisted tại: https://developer.apple.com/contact/request/unlisted-app/
+(điền tên app, Bundle ID `vn.trilongland.kpi`, mô tả "internal app for employees of
+Tri Long Real Estate Co., Ltd — attendance, KPI tracking"). Apple trả lời trong vài
+ngày; sau khi được duyệt, vào App Store Connect → app → *Pricing and Availability* →
+*App Distribution Method* → chọn **Unlisted**.
+
+### 7.2. Bản build: KHÔNG cần build lại
+
+Bản `.ipa` đang nằm trên TestFlight dùng được luôn cho App Store — cùng một file.
+Trong App Store Connect → tab *App Store* → mục *Build* → bấm **+** → chọn đúng bản
+đang chạy TestFlight. Muốn bản mới hơn thì chạy `ios-testflight` như thường rồi chọn
+bản đó. `submit_to_app_store: false` trong `codemagic.yaml` cứ giữ nguyên — lần đầu
+nộp tay trên App Store Connect cho chắc.
+
+### 7.3. Việc phải làm trên App Store Connect (mục nào thiếu là không nộp được)
+
+**App Information**
+- Name: `Trí Long Land` (tối đa 30 ký tự; đổi thành `Trí Long Land KPI` nếu bị trùng)
+- Subtitle: `Chấm công & KPI nội bộ`
+- Primary language: Vietnamese · Category: **Business**
+- Content Rights: không dùng nội dung bên thứ ba
+- Age Rating: trả lời "No" tất cả → **4+**
+
+**Privacy Policy URL — BẮT BUỘC.** Tạo một trang trên trilongland.vn (gợi ý
+`https://trilongland.vn/chinh-sach-bao-mat-ung-dung/`) với nội dung ở mục 7.5.
+
+**Pricing and Availability**: Free · chỉ cần chọn Việt Nam (thêm nước khác nếu có nhân
+viên ở nước ngoài).
+
+**Version Information (tab App Store)**
+- Screenshots: bắt buộc bộ **iPhone 6.9"** (1320×2868) *hoặc* 6.7" (1290×2796) — 3 đến
+  10 ảnh. Chụp trên iPhone thật rồi tải lên là được, không cần thiết kế. Gợi ý 5 ảnh:
+  Đăng nhập → Trang chủ → Chấm công → Lịch sử chấm công → Bảng KPI cá nhân.
+- Nếu app còn khai báo hỗ trợ iPad (hiện tại đang khai báo, xem 7.6) thì phải có thêm bộ
+  **iPad 13"** (2064×2752) và Apple sẽ test trên iPad.
+- Description, Keywords, Support URL (`https://trilongland.vn`): dùng mẫu ở 7.4.
+- Copyright: `2026 Công ty TNHH Bất động sản Trí Long`
+
+**App Privacy** (khai báo dữ liệu thu thập — Apple đối chiếu với thực tế app):
+
+| Loại dữ liệu | Có thu | Gắn với danh tính | Mục đích |
+|---|---|---|---|
+| Name | ✔ | ✔ | App Functionality |
+| Phone Number | ✔ | ✔ | App Functionality |
+| Precise Location | ✔ | ✔ | App Functionality (chấm công GPS) |
+| Photos or Videos | ✔ | ✔ | App Functionality (ảnh chấm công, thực chiến, bài đăng) |
+| User ID | ✔ | ✔ | App Functionality |
+| Device ID (token thông báo đẩy) | ✔ | ✔ | App Functionality |
+| Used for tracking | **Không** | | |
+
+**App Review Information — điền tài khoản demo** (đã có từ lần Beta review, dùng lại).
+Sign-in required: bật. Ghi chú cho người duyệt viết **bằng tiếng Anh**, mẫu ở 7.4.
+
+### 7.4. Nội dung điền sẵn
+
+**Description (tiếng Việt, storefront Việt Nam)**
+
+> Ứng dụng nội bộ dành cho nhân viên Công ty TNHH Bất động sản Trí Long.
+>
+> • Chấm công bằng GPS và ảnh chụp tại văn phòng hoặc điểm thực địa
+> • Theo dõi điểm KPI cá nhân theo tuần, tháng: chuyên cần, thực chiến, lan tỏa, chốt căn
+> • Gửi đơn xin nghỉ, xem lịch sử chấm công
+> • Điểm danh buổi đào tạo bằng mã QR, xem kho video đào tạo
+> • Nhận thông báo từ công ty
+>
+> Tài khoản do bộ phận nhân sự cấp. Ứng dụng không hỗ trợ tự đăng ký.
+
+**Keywords** (tối đa 100 ký tự): `trí long,tri long land,chấm công,kpi,bất động sản,nội bộ`
+
+**Notes for App Review (tiếng Anh — người duyệt không đọc tiếng Việt)**
+
+> This is an internal app for employees of Tri Long Real Estate Co., Ltd (Hanoi, Vietnam).
+> Accounts are created by HR; there is no self sign-up, so no account deletion flow is needed
+> in-app (employees contact HR). We have also requested Unlisted distribution.
+>
+> Demo account: phone `<số>` / password `<mật khẩu>`.
+>
+> Notes on testing:
+> 1. Check-in requires a selfie and GPS. The demo office is in Hanoi; from your location the app
+>    will report "outside office range" and ask for a reason — this is expected. The check-in is
+>    then submitted for manager approval.
+> 2. Check-in selfies are compared against the employee photo registered by HR (face
+>    verification). With the demo account the photo on file is a placeholder, so a check-in by a
+>    different person is rejected by design. [Sửa dòng này nếu áp dụng cách ở 7.6.]
+> 3. Push notifications require Firebase; the app works normally without them.
+
+### 7.5. Chính sách quyền riêng tư — nội dung trang web (chỉnh lại theo thực tế rồi đăng)
+
+> **Chính sách quyền riêng tư — Ứng dụng Trí Long Land**
+> Cập nhật: 19/09/2026
+>
+> Ứng dụng Trí Long Land (sau đây gọi là "Ứng dụng") do Công ty TNHH Bất động sản Trí Long
+> ("Công ty") phát triển, dành riêng cho nhân viên và cộng sự của Công ty để chấm công và
+> theo dõi chỉ tiêu công việc (KPI). Ứng dụng không dành cho khách hàng hay công chúng.
+>
+> **1. Dữ liệu thu thập**
+> - Thông tin tài khoản: họ tên, số điện thoại, phòng ban, vai trò — do bộ phận nhân sự
+>   tạo, không thu thập qua đăng ký công khai.
+> - Vị trí GPS: chỉ lấy tại thời điểm bạn bấm chấm công, để xác định bạn đang ở văn phòng
+>   hay điểm thực địa. Ứng dụng không theo dõi vị trí khi bạn không chấm công.
+> - Ảnh: ảnh chụp khi chấm công, ảnh báo cáo thực chiến, ảnh bài đăng do bạn chủ động chụp
+>   hoặc chọn. Ảnh chấm công được so khớp tự động với ảnh nhân sự đã đăng ký để xác nhận
+>   đúng người.
+> - Mã thiết bị nhận thông báo đẩy (push token).
+>
+> **2. Mục đích sử dụng**: chấm công, tính điểm KPI, quản lý đào tạo và thông báo nội bộ.
+> Không dùng để quảng cáo, không bán hay chia sẻ cho bên thứ ba vì mục đích thương mại.
+>
+> **3. Lưu trữ và bảo mật**: dữ liệu lưu trên máy chủ của Công ty thuê tại các nhà cung cấp
+> hạ tầng đám mây (khu vực Singapore); ảnh lưu tại dịch vụ lưu trữ ảnh đám mây. Kết nối
+> được mã hóa HTTPS. Chỉ quản trị viên và cấp quản lý được phân quyền mới xem dữ liệu.
+>
+> **4. Thời gian lưu**: trong thời gian bạn làm việc tại Công ty và theo quy định lưu hồ sơ
+> nhân sự. Khi nghỉ việc, tài khoản bị khóa; bạn có thể yêu cầu xóa dữ liệu qua bộ phận
+> nhân sự.
+>
+> **5. Quyền của bạn**: xem, sửa thông tin cá nhân qua bộ phận nhân sự; rút quyền vị trí
+> hoặc camera trong Cài đặt iOS (khi đó không chấm công được).
+>
+> **6. Liên hệ**: Công ty TNHH Bất động sản Trí Long — [địa chỉ] — [email] — [điện thoại].
+
+### 7.6. Những chỗ dễ bị từ chối và cách xử lý
+
+| Rủi ro | Vì sao | Cách xử lý |
+|---|---|---|
+| "App dành cho nhân viên một tổ chức, không phù hợp App Store" | Apple hướng app nội bộ sang Business Manager | Xin **Unlisted** (7.1) ngay từ đầu; nếu vẫn bị từ chối thì trả lời trong Resolution Center là đã có yêu cầu Unlisted |
+| Người duyệt không chấm công được vì **xác thực khuôn mặt** | Backend đang bật `app.rekognition.enabled: true`; ảnh của người duyệt không khớp avatar tài khoản demo | Hoặc giải thích trong Notes (7.4), hoặc thêm cờ "bỏ xác thực khuôn mặt" cho riêng tài khoản demo trên backend (chưa làm — cần quyết) |
+| Đòi **xóa tài khoản trong app** (Guideline 5.1.1(v)) | Chỉ áp dụng cho app có tự đăng ký | Đã ghi trong Notes: tài khoản do HR cấp, không có đăng ký |
+| **iPad**: app khai báo chạy trên iPad (`TARGETED_DEVICE_FAMILY = "1,2"`) nhưng giao diện chỉ thiết kế cho điện thoại | Apple test trên iPad, đòi ảnh iPad | Nếu không nhân viên nào dùng iPad: đổi sang chỉ iPhone (`= "1"`) rồi build lại — bỏ được cả ảnh iPad lẫn rủi ro |
+| Quyền vị trí "Always" | `Info.plist` có khai `NSLocationAlwaysUsageDescription` dù app chỉ dùng khi mở | Không sao nếu app không xin quyền Always lúc chạy (hiện không xin) |
+| Thiếu Privacy Policy URL / App Privacy sai | Bắt buộc | Mục 7.3, 7.5 |
+
+### 7.7. Sau khi được duyệt
+
+- Chọn **Manually release** khi nộp, để tự quyết ngày phát hành sau khi Apple duyệt.
+- Gửi link App Store cho nhân viên thay link TestFlight; app TestFlight có thể gỡ.
+- Bản sau: chạy `ios-testflight` như cũ → trên App Store Connect tạo version mới → chọn
+  build → nộp. Hoặc đổi `submit_to_app_store: true` trong `codemagic.yaml` để tự nộp.
+
+*Cập nhật lần cuối: 2026-09-19*
