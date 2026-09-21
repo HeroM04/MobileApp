@@ -75,6 +75,11 @@ class ApiClient {
         final String newRefreshToken = data['refreshToken'];
         await _secureStorage.write(key: 'accessToken', value: newAccessToken);
         await _secureStorage.write(key: 'refreshToken', value: newRefreshToken);
+        // Token mới mang phòng ban/vai trò hiện tại của máy chủ — kéo hồ sơ về
+        // cho khớp, chạy nền để không làm chậm yêu cầu đang chờ token.
+        if (getx.Get.isRegistered<AuthController>()) {
+          getx.Get.find<AuthController>().dongBoHoSo();
+        }
         return newAccessToken;
       }
       debugLog('Refresh token: máy chủ không cấp token mới (${response.statusCode})');

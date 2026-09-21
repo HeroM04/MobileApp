@@ -308,33 +308,13 @@ class CheckinController extends GetxController {
     return (lat: lat, lng: lng, radius: radius);
   }
 
-  /// Tải tọa độ + bán kính văn phòng MỚI NHẤT từ máy chủ, ghi đè bản lưu lúc
-  /// đăng nhập. Máy chủ không trả lời kịp (3 giây) thì giữ bản cũ — chấm công
-  /// không được kẹt vì việc này, và máy chủ vẫn tự kiểm lại bằng số liệu của nó.
+  /// Tải hồ sơ MỚI NHẤT (phòng ban → tọa độ + bán kính) từ máy chủ trước khi
+  /// đo khoảng cách. Máy chủ không trả lời kịp (3 giây) thì giữ bản cũ — chấm
+  /// công không được kẹt vì việc này, và máy chủ vẫn tự kiểm lại bằng số liệu
+  /// của nó.
   Future<void> _taiCauHinhVanPhong() async {
     if (!Get.isRegistered<AuthController>()) return;
-    try {
-      final res = await ApiClient.dio
-          .get('/users/my-profile',
-              options: Options(receiveTimeout: const Duration(seconds: 3), sendTimeout: const Duration(seconds: 3)))
-          .timeout(const Duration(seconds: 4));
-      final data = res.data is Map ? res.data['data'] : null;
-      final user = data is Map ? data['user'] : null;
-      final dept = user is Map ? user['department'] : null;
-      if (dept is! Map) return;
-      final auth = Get.find<AuthController>();
-      final lat = (dept['officeLat'] as num?)?.toDouble();
-      final lng = (dept['officeLng'] as num?)?.toDouble();
-      final radius = (dept['allowedRadius'] as num?)?.toDouble();
-      if (lat != null && lng != null && lat != 0 && lng != 0) {
-        auth.currentUser['officeLat'] = lat;
-        auth.currentUser['officeLng'] = lng;
-      }
-      if (radius != null && radius > 0) auth.currentUser['allowedRadius'] = radius;
-      auth.currentUser.refresh();
-    } catch (_) {
-      // giữ bản lưu lúc đăng nhập
-    }
+    await Get.find<AuthController>().dongBoHoSo(choToiDa: const Duration(seconds: 3));
   }
 
   double _calculateDistanceToOffice(double lat, double lng) {

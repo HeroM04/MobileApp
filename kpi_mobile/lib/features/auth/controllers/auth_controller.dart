@@ -54,10 +54,61 @@ class AuthController extends GetxController {
           };
           isLoggedIn.value = true;
           PushService().khoiDong(); // mở lại app khi đã đăng nhập
+          dongBoHoSo();             // chạy nền, không giữ màn hình
         }
       }
     } catch (e) {
       print("Lỗi kiểm tra trạng thái đăng nhập: $e");
+    }
+  }
+
+  /// Lấy hồ sơ MỚI NHẤT từ máy chủ và ghi đè bản lưu lúc đăng nhập.
+  ///
+  /// Mọi thứ ở trên chỉ là bản chụp lúc đăng nhập. Admin chuyển một trưởng
+  /// phòng từ KD08 sang KD28 trên web: app vẫn ghi "Phòng Kinh Doanh 8" và
+  /// vẫn hỏi máy chủ theo phòng cũ cho tới khi người đó đăng xuất đăng nhập
+  /// lại — mà chẳng ai biết là phải làm thế. Gọi hàm này khi mở app, sau mỗi
+  /// lần làm mới token và trước khi chấm công.
+  ///
+  /// Máy chủ không trả lời trong [choToiDa] thì giữ bản cũ — không được kẹt
+  /// màn hình vì việc này.
+  Future<void> dongBoHoSo({Duration choToiDa = const Duration(seconds: 8)}) async {
+    if (!isLoggedIn.value) return;
+    try {
+      final res = await ApiClient.dio
+          .get('/users/my-profile',
+              options: dio_pkg.Options(receiveTimeout: choToiDa, sendTimeout: choToiDa))
+          .timeout(choToiDa + const Duration(seconds: 1));
+      final data = res.data is Map ? res.data['data'] : null;
+      final user = data is Map ? data['user'] : null;
+      if (user is! Map) return;
+      final dept = user['department'];
+      final phong = dept is Map ? dept : const {};
+
+      final prefs = await SharedPreferences.getInstance();
+      final moi = Map<String, dynamic>.from(currentUser);
+      if (user['fullName'] is String) { moi['fullName'] = user['fullName']; await prefs.setString('fullName', user['fullName']); }
+      if (user['role'] is String)     { moi['role'] = user['role'];         await prefs.setString('role', user['role']); }
+      if (user['avatarUrl'] != null)  { moi['avatarUrl'] = user['avatarUrl']; }
+
+      final deptId = (phong['id'] as num?)?.toInt();
+      moi['departmentId'] = deptId;
+      moi['departmentName'] = phong['name'] ?? '';
+      if (deptId != null) { await prefs.setInt('departmentId', deptId); } else { await prefs.remove('departmentId'); }
+      await prefs.setString('departmentName', moi['departmentName']);
+
+      final lat = (phong['officeLat'] as num?)?.toDouble();
+      final lng = (phong['officeLng'] as num?)?.toDouble();
+      final radius = (phong['allowedRadius'] as num?)?.toInt();
+      if (lat != null && lng != null && lat != 0 && lng != 0) {
+        moi['officeLat'] = lat; moi['officeLng'] = lng;
+        await prefs.setDouble('officeLat', lat); await prefs.setDouble('officeLng', lng);
+      }
+      if (radius != null && radius > 0) { moi['allowedRadius'] = radius; await prefs.setInt('allowedRadius', radius); }
+
+      currentUser.value = moi;
+    } catch (_) {
+      // giữ bản lưu lúc đăng nhập
     }
   }
 
