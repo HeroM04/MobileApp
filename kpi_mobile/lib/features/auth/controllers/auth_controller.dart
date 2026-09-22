@@ -18,11 +18,20 @@ class AuthController extends GetxController {
 
   final _secureStorage = const FlutterSecureStorage();
 
+  AppLifecycleListener? _vongDoi;
+
   @override
   void onInit() {
     super.onInit();
     checkLoginStatus();
     wakeUpServer(); // Gọi ngầm để đánh thức Render ngay khi mở app
+    _vongDoi = AppLifecycleListener(onResume: khiMoLaiApp);
+  }
+
+  @override
+  void onClose() {
+    _vongDoi?.dispose();
+    super.onClose();
   }
 
   // 1. Kiểm tra trạng thái đăng nhập khi mở App
@@ -106,10 +115,28 @@ class AuthController extends GetxController {
       }
       if (radius != null && radius > 0) { moi['allowedRadius'] = radius; await prefs.setInt('allowedRadius', radius); }
 
+      final doiPhongHayVaiTro = moi['departmentId'] != currentUser['departmentId'] || moi['role'] != currentUser['role'];
       currentUser.value = moi;
+
+      // Sang phòng khác / vai trò khác thì bảng KPI phòng mình phải nạp lại —
+      // không thì tên phòng mới mà danh sách vẫn là quân phòng cũ.
+      if (doiPhongHayVaiTro && Get.isRegistered<KpiController>()) {
+        Get.find<KpiController>().fetchKpiData();
+      }
     } catch (_) {
       // giữ bản lưu lúc đăng nhập
     }
+  }
+
+  // Mở lại app từ nền: hồ sơ có thể đã bị Admin sửa trong lúc app ngủ (WebSocket
+  // đứt, tin nền không tới). Không gọi dồn: hai lần mở cách nhau dưới 30 giây
+  // thì bỏ qua lần sau.
+  DateTime? _lanDongBoCuoi;
+  void khiMoLaiApp() {
+    final bayGio = DateTime.now();
+    if (_lanDongBoCuoi != null && bayGio.difference(_lanDongBoCuoi!).inSeconds < 30) return;
+    _lanDongBoCuoi = bayGio;
+    dongBoHoSo();
   }
 
   // HÀM ĐÁNH THỨC RENDER NGẦM KHI MỞ APP

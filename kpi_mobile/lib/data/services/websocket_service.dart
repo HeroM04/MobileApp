@@ -4,6 +4,7 @@ import 'dart:io' if (dart.library.html) 'package:kpi_mobile/core/stubs/io_stub.d
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:get/get.dart';
+import '../../features/auth/controllers/auth_controller.dart';
 import '../../features/home/controllers/kpi_controller.dart';
 import '../../features/shell/controllers/shell_controller.dart';
 import '../../features/thongbao/controllers/thong_bao_controller.dart';
@@ -55,6 +56,18 @@ class WebSocketService {
 
   void _onConnect(StompFrame frame, int userId) {
     print('Connected to STOMP WebSocket');
+
+    // Admin vừa sửa hồ sơ của mình trên web (đổi phòng, đổi vai trò…): máy chủ
+    // nhắn một tiếng, app tải lại hồ sơ ngay — không phải đăng xuất đăng nhập.
+    stompClient?.subscribe(
+      destination: '/topic/ho-so/$userId',
+      callback: (_) {
+        if (Get.isRegistered<AuthController>()) {
+          Get.find<AuthController>().dongBoHoSo();
+        }
+      },
+    );
+
     stompClient?.subscribe(
       destination: '/topic/kpi/$userId',
       callback: (StompFrame frame) {

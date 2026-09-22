@@ -8,6 +8,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 
 import '../../core/network/api_client.dart';
+import '../../features/auth/controllers/auth_controller.dart';
 import '../../features/shell/controllers/shell_controller.dart';
 import '../../features/thongbao/controllers/thong_bao_controller.dart';
 
@@ -128,6 +129,11 @@ class PushService {
   }
 
   void _hienKhiDangMo(RemoteMessage m) {
+    // Tin nền "hồ sơ đổi": không hiện gì, chỉ tải lại hồ sơ cho khớp máy chủ.
+    if (m.data['type'] == 'HO_SO_DOI') {
+      if (Get.isRegistered<AuthController>()) Get.find<AuthController>().dongBoHoSo();
+      return;
+    }
     final n = m.notification;
     if (n == null) return;
     _local.show(
