@@ -293,7 +293,18 @@ class HomeView extends StatelessWidget {
     });
   }
 
+  /*
+   * Phân hệ nghiệp vụ.
+   *
+   * Văn phòng (Back-Office) và Admin không thuộc diện chấm KPI — họ chỉ chấm
+   * công. Bày ra "Thực chiến", "Bài post", "Chốt căn"… thì họ bấm vào, gửi báo
+   * cáo, rồi chờ điểm không bao giờ tới. Nên chỉ hiện những phân hệ họ thật sự
+   * dùng: chấm công và phản hồi.
+   */
   Widget _buildModulesGrid() {
+    final vaiTro = authController.currentUser['role']?.toString() ?? 'SALE';
+    final chamKpi = vaiTro == 'SALE' || vaiTro == 'TRUONG_PHONG';
+
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -309,34 +320,36 @@ class HomeView extends StatelessWidget {
           color: const Color(0xFF0F2C59),
           index: 1, // Shell index for Checkin
         ),
-        _buildModuleCard(
-          title: "Thực chiến",
-          subtitle: "Gặp khách hàng",
-          icon: Icons.groups,
-          color: const Color(0xFFD4AF37),
-          index: 2, // Shell index for Thuc Chien
-        ),
-        _buildModuleCard(
-          title: "Bài post",
-          subtitle: "Truyền thông KPI",
-          icon: Icons.post_add,
-          color: const Color(0xFF1B3B6F),
-          index: 3, // Shell index for Bai Post
-        ),
-        _buildModuleCard(
-          title: "Đào tạo",
-          subtitle: "Quét mã chuyên cần",
-          icon: Icons.school_outlined,
-          color: Colors.green,
-          index: 4, // Shell index for Dao Tao
-        ),
-        _buildModuleCard(
-          title: "Gieo hạt",
-          subtitle: "Giới thiệu người mới",
-          icon: Icons.eco_outlined,
-          color: const Color(0xFFD4AF37),
-          index: 5, // Shell index for Gieo Hat
-        ),
+        if (chamKpi) ...[
+          _buildModuleCard(
+            title: "Thực chiến",
+            subtitle: "Gặp khách hàng",
+            icon: Icons.groups,
+            color: const Color(0xFFD4AF37),
+            index: 2, // Shell index for Thuc Chien
+          ),
+          _buildModuleCard(
+            title: "Bài post",
+            subtitle: "Truyền thông KPI",
+            icon: Icons.post_add,
+            color: const Color(0xFF1B3B6F),
+            index: 3, // Shell index for Bai Post
+          ),
+          _buildModuleCard(
+            title: "Đào tạo",
+            subtitle: "Quét mã chuyên cần",
+            icon: Icons.school_outlined,
+            color: Colors.green,
+            index: 4, // Shell index for Dao Tao
+          ),
+          _buildModuleCard(
+            title: "Gieo hạt",
+            subtitle: "Giới thiệu người mới",
+            icon: Icons.eco_outlined,
+            color: const Color(0xFFD4AF37),
+            index: 5, // Shell index for Gieo Hat
+          ),
+        ],
         _buildModuleCard(
           title: "Phản hồi",
           subtitle: "Góp ý kiến Admin",
@@ -344,13 +357,14 @@ class HomeView extends StatelessWidget {
           color: Colors.teal,
           index: 6, // Shell index for Phan Hoi
         ),
-        _buildModuleCard(
-          title: "Chốt căn",
-          subtitle: "Đăng ký chốt căn",
-          icon: Icons.domain_verification_outlined,
-          color: Colors.redAccent,
-          index: 7, // Shell index for Chot Can
-        ),
+        if (chamKpi)
+          _buildModuleCard(
+            title: "Chốt căn",
+            subtitle: "Đăng ký chốt căn",
+            icon: Icons.domain_verification_outlined,
+            color: Colors.redAccent,
+            index: 7, // Shell index for Chot Can
+          ),
       ],
     );
   }

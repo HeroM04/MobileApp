@@ -124,10 +124,14 @@ class ShellView extends StatelessWidget {
             
             // Drawer Menu List
             Expanded(
-              child: ListView.builder(
+              child: Builder(builder: (context) {
+                // Danh sách chỉ số được hiện — Văn phòng chỉ thấy phần chấm công
+                final muc = shellController.mucHienThi;
+                return ListView.builder(
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                itemCount: shellController.menuItems.length,
-                itemBuilder: (context, index) {
+                itemCount: muc.length,
+                itemBuilder: (context, viTri) {
+                  final index = muc[viTri];
                   return Obx(() {
                     final isSelected = shellController.selectedIndex.value == index;
                     return InkWell(
@@ -173,9 +177,10 @@ class ShellView extends StatelessWidget {
                     );
                   });
                 },
-              ),
+                );
+              }),
             ),
-            
+
             // Footer: Logout
             const Divider(color: Color(0xFFE2E8F0)),
             Padding(

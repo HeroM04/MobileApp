@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 
 import '../../../data/services/kpi_service.dart';
+import '../../auth/controllers/auth_controller.dart';
 import '../../thongbao/controllers/thong_bao_controller.dart';
 
 class ShellController extends GetxController {
@@ -24,6 +25,25 @@ class ShellController extends GetxController {
     "Thông báo",
     "Trang cá nhân",
   ];
+
+  /// Chỉ số các mục được hiện trong menu, theo vai trò.
+  ///
+  /// Văn phòng (Back-Office) và Admin không thuộc diện chấm KPI — họ chỉ chấm
+  /// công. Sáu mục còn lại (Thực chiến, Bài post, Đào tạo, Gieo hạt, Chốt căn,
+  /// Thông báo điểm) đều là nghiệp vụ KPI, mở ra chỉ để thấy trống hoặc gửi báo
+  /// cáo rồi chờ điểm không bao giờ tới.
+  ///
+  /// Trả về CHỈ SỐ chứ không phải danh sách mới: chỉ số chính là tham số của
+  /// [changeMenuIndex] và quyết định màn hình nào hiện ra, cắt bớt danh sách là
+  /// lệch hết.
+  List<int> get mucHienThi {
+    final vaiTro = Get.isRegistered<AuthController>()
+        ? (Get.find<AuthController>().currentUser['role']?.toString() ?? 'SALE')
+        : 'SALE';
+    final chamKpi = vaiTro == 'SALE' || vaiTro == 'TRUONG_PHONG';
+    if (chamKpi) return List.generate(menuItems.length, (i) => i);
+    return const [0, 1, 6, 9]; // Trang chủ · Chấm công · Phản hồi · Trang cá nhân
+  }
 
   /// Số khoản điểm KPI mới chưa xem — hiện thành huy hiệu đỏ trên thanh tiêu đề.
   final soThongBaoMoi = 0.obs;
