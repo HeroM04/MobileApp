@@ -300,10 +300,19 @@ class ThongBaoView extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(color: const Color(0xFFFED7AA)),
                     ),
+                    // Khoản không vào đủ có hai lý do ngược nhau: nhóm đã đầy
+                    // (khoản CỘNG bị chặn) hay nhóm đã về 0 (khoản TRỪ không trừ
+                    // được nữa — điểm tuần không xuống dưới 0). Trước đây câu nào
+                    // cũng nói "đã đạt điểm tối đa", nên khoản trừ hiện thành
+                    // "đã đạt tối đa nên khoản -15đ không được cộng thêm".
                     child: Text(
-                      thuc == 0
-                          ? 'Nhóm này đã đạt điểm tối đa của tuần nên khoản ${quyDinh}đ không được cộng thêm'
-                          : 'Quy định ${quyDinh}đ, nhưng nhóm sắp đầy nên chỉ vào được ${thuc}đ',
+                      quyDinh < 0
+                          ? (thuc == 0
+                              ? 'Nhóm này đang 0 điểm nên khoản trừ ${quyDinh}đ không trừ được nữa'
+                              : 'Quy định trừ ${quyDinh}đ, nhóm chỉ còn ${-thuc}đ nên trừ hết về 0')
+                          : (thuc == 0
+                              ? 'Nhóm này đã đạt điểm tối đa của tuần nên khoản ${quyDinh}đ không được cộng thêm'
+                              : 'Quy định ${quyDinh}đ, nhưng nhóm sắp đầy nên chỉ vào được ${thuc}đ'),
                       style: const TextStyle(
                           fontSize: 11, height: 1.3, color: Color(0xFF9A3412), fontWeight: FontWeight.w600),
                     ),
