@@ -117,7 +117,9 @@ class _DaoTao1On1ViewState extends State<DaoTao1On1View> {
       bool success = await controller.submitOneOnOne(_contentController.text.trim(), photoUrl);
       if (success) {
         Get.back();
-        snack('Thành công', 'Đã nộp báo cáo và cộng 5 điểm KPI', backgroundColor: Colors.green, colorText: Colors.white);
+        // Báo cáo 1-1 giờ chờ Admin duyệt mới cộng điểm — không hứa "đã cộng"
+        snack('Đã gửi báo cáo', 'Admin duyệt xong sẽ cộng 5 điểm KPI. Theo dõi ở mục Thông báo.',
+            backgroundColor: Colors.green, colorText: Colors.white);
       } else {
         snack('Thất bại', 'Có lỗi xảy ra', backgroundColor: Colors.red, colorText: Colors.white);
       }
