@@ -2,9 +2,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-/// Widget hiển thị mã QR xoay mỗi 10 giây — đồng bộ với Web Admin.
-/// Thuật toán sinh token: (floor(epochMs / 10000) * 31337) % 999999
+/// Widget hiển thị mã QR xoay mỗi 30 giây — đồng bộ với Web Admin.
+/// Thuật toán sinh token: (floor(epochMs / 30000) * 31337) % 999999
 /// Giống hệt hàm generateQRToken() trong ManageTraining.jsx của Web Admin.
+///
+/// Đổi [giayDoiMa] là phải đổi ĐỒNG THỜI cả Web Admin lẫn TrainingService của
+/// máy chủ, không thì học viên quét ra "Mã QR đã hết hạn".
+const int giayDoiMa = 30;
+const int _msDoiMa = giayDoiMa * 1000;
+
 class QrTokenDisplay extends StatefulWidget {
   final String roomCode;
   final String roomTitle;
@@ -25,19 +31,19 @@ class _QrTokenDisplayState extends State<QrTokenDisplay> {
   Timer? _timer;
 
   /// Sinh token theo đúng công thức của Web Admin:
-  /// const now = Math.floor(Date.now() / 10000);
+  /// const now = Math.floor(Date.now() / 30000);
   /// return (now * 31337 % 999999).toString().padStart(6, '0');
   String _generateToken() {
-    final now = DateTime.now().millisecondsSinceEpoch ~/ 10000;
+    final now = DateTime.now().millisecondsSinceEpoch ~/ _msDoiMa;
     final token = (now * 31337) % 999999;
     return token.toString().padLeft(6, '0');
   }
 
-  /// Tính số giây còn lại trong window 10s hiện tại
+  /// Tính số giây còn lại trong vòng đổi mã hiện tại
   int _calcSecondsLeft() {
     final ms = DateTime.now().millisecondsSinceEpoch;
-    final elapsed = (ms % 10000) ~/ 1000; // số giây đã trôi qua trong window này
-    return 10 - elapsed;
+    final elapsed = (ms % _msDoiMa) ~/ 1000; // số giây đã trôi qua trong vòng này
+    return giayDoiMa - elapsed;
   }
 
   @override
@@ -182,8 +188,8 @@ class _CountdownBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fraction = secondsLeft / 10.0;
-    final color = secondsLeft <= 3 ? Colors.red : const Color(0xFF10B981);
+    final fraction = secondsLeft / giayDoiMa;
+    final color = secondsLeft <= 5 ? Colors.red : const Color(0xFF10B981);
     return SizedBox(
       width: 200,
       child: ClipRRect(
