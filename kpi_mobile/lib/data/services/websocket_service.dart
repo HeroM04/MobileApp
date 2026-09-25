@@ -9,6 +9,7 @@ import '../../features/home/controllers/kpi_controller.dart';
 import '../../features/shell/controllers/shell_controller.dart';
 import '../../features/thongbao/controllers/thong_bao_controller.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/dong_bo.dart';
 import 'dart:convert';
 import '../../core/widgets/thong_bao.dart';
 
@@ -54,6 +55,19 @@ class WebSocketService {
     stompClient?.activate();
   }
 
+  /// Tin đồng bộ dạng {"loai": "BAI_DANG", "thaoTac": "SUA", "id": "12"}.
+  /// Tin hỏng hay loại lạ thì bỏ qua, không được làm rơi kết nối.
+  static void nhanTinDongBo(String? than) {
+    if (than == null) return;
+    try {
+      final tin = json.decode(than);
+      final loai = tin is Map ? tin['loai']?.toString() : null;
+      if (loai != null) DongBo.bao(loai);
+    } catch (_) {}
+  }
+
+  void _nhanTinDongBo(StompFrame frame) => nhanTinDongBo(frame.body);
+
   void _onConnect(StompFrame frame, int userId) {
     print('Connected to STOMP WebSocket');
 
@@ -67,6 +81,13 @@ class WebSocketService {
         }
       },
     );
+
+    // Đồng bộ web → app: máy chủ báo sau mỗi lần thêm/sửa/xóa dữ liệu của mình
+    // (chấm công, bài đăng, thực chiến…) và dữ liệu chung (buổi đào tạo, phòng
+    // ban). Tin chỉ có tên loại — app tự tải lại qua API.
+    for (final kenh in ['/topic/dong-bo/$userId', '/topic/dong-bo/all']) {
+      stompClient?.subscribe(destination: kenh, callback: _nhanTinDongBo);
+    }
 
     stompClient?.subscribe(
       destination: '/topic/kpi/$userId',

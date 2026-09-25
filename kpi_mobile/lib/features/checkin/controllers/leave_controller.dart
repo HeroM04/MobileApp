@@ -2,9 +2,12 @@ import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 
 import '../../../data/services/leave_service.dart';
+import '../../../core/utils/dong_bo.dart';
 
 /// Quản lý đơn xin vắng của nhân sự đang đăng nhập.
 class LeaveController extends GetxController {
+  void Function()? _huyDongBo;
+
   final LeaveService _service = LeaveService();
 
   var isLoading = false.obs;
@@ -15,6 +18,14 @@ class LeaveController extends GetxController {
   void onInit() {
     super.onInit();
     loadMyRequests();
+    // Admin sửa trên web thì máy chủ báo, danh sách này tự tải lại
+    _huyDongBo = DongBo.dangKy(DongBo.donVang, () => loadMyRequests());
+  }
+
+  @override
+  void onClose() {
+    _huyDongBo?.call();
+    super.onClose();
   }
 
   Future<void> loadMyRequests() async {

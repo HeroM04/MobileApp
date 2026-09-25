@@ -9,6 +9,7 @@ import '../../auth/controllers/auth_controller.dart';
 import '../controllers/thuc_chien_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
 import '../../../core/widgets/thong_bao.dart';
+import '../../../core/utils/dong_bo.dart';
 
 class ThucChienView extends StatefulWidget {
   const ThucChienView({super.key});
@@ -421,6 +422,7 @@ class _ThucChienViewState extends State<ThucChienView> {
   Widget _buildHistoryTab() {
     return HistoryDateListView(
       onFetchHistory: (date) => controller.fetchHistory(date),
+      loaiDongBo: DongBo.thucChien,
       emptyMessage: 'Không có báo cáo thực chiến nào trong ngày này.',
       itemBuilder: (item, index) {
         final submittedAt = item['submittedAt'];

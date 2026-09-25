@@ -9,6 +9,7 @@ import '../../../data/services/push_service.dart';
 import '../../home/controllers/kpi_controller.dart';
 import '../../shell/views/shell_view.dart';
 import '../views/login_view.dart';
+import '../../../core/utils/dong_bo.dart';
 import '../../../core/widgets/thong_bao.dart';
 
 class AuthController extends GetxController {
@@ -19,6 +20,7 @@ class AuthController extends GetxController {
   final _secureStorage = const FlutterSecureStorage();
 
   AppLifecycleListener? _vongDoi;
+  void Function()? _huyDongBo;
 
   @override
   void onInit() {
@@ -26,11 +28,14 @@ class AuthController extends GetxController {
     checkLoginStatus();
     wakeUpServer(); // Gọi ngầm để đánh thức Render ngay khi mở app
     _vongDoi = AppLifecycleListener(onResume: khiMoLaiApp);
+    // Phòng ban đổi tọa độ/bán kính trên web → máy chủ báo HO_SO cho mọi người
+    _huyDongBo = DongBo.dangKy(DongBo.hoSo, () => dongBoHoSo());
   }
 
   @override
   void onClose() {
     _vongDoi?.dispose();
+    _huyDongBo?.call();
     super.onClose();
   }
 
@@ -128,15 +133,17 @@ class AuthController extends GetxController {
     }
   }
 
-  // Mở lại app từ nền: hồ sơ có thể đã bị Admin sửa trong lúc app ngủ (WebSocket
-  // đứt, tin nền không tới). Không gọi dồn: hai lần mở cách nhau dưới 30 giây
-  // thì bỏ qua lần sau.
+  // Mở lại app từ nền: trong lúc app ngủ WebSocket đứt, mọi tin đồng bộ (Admin
+  // duyệt bài, sửa hồ sơ, đổi buổi đào tạo…) đều bị lỡ — nên coi như mọi thứ
+  // đều có thể đã đổi và tải lại hết, gồm cả hồ sơ (loại HO_SO). Không gọi
+  // dồn: hai lần mở cách nhau dưới 30 giây thì bỏ qua lần sau.
   DateTime? _lanDongBoCuoi;
   void khiMoLaiApp() {
+    if (!isLoggedIn.value) return;
     final bayGio = DateTime.now();
     if (_lanDongBoCuoi != null && bayGio.difference(_lanDongBoCuoi!).inSeconds < 30) return;
     _lanDongBoCuoi = bayGio;
-    dongBoHoSo();
+    DongBo.baoTatCa();
   }
 
   // HÀM ĐÁNH THỨC RENDER NGẦM KHI MỞ APP

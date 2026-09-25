@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../controllers/phan_hoi_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
 import '../../../core/widgets/thong_bao.dart';
+import '../../../core/utils/dong_bo.dart';
 
 class PhanHoiView extends StatefulWidget {
   const PhanHoiView({super.key});
@@ -250,6 +251,7 @@ class _PhanHoiViewState extends State<PhanHoiView> {
   Widget _buildHistoryTab() {
     return HistoryDateListView(
       onFetchHistory: (date) => controller.fetchHistory(date),
+      loaiDongBo: DongBo.phanHoi,
       emptyMessage: 'Không có phản hồi nào trong ngày này.',
       itemBuilder: (fb, index) {
         final title = fb['title'] ?? 'Góp ý';

@@ -2,12 +2,15 @@ import 'package:get/get.dart';
 
 import '../../../core/network/api_error.dart';
 import '../../../data/services/kpi_service.dart';
+import '../../../core/utils/dong_bo.dart';
 
 /// Màn hình Thông báo: lịch sử từng khoản điểm KPI được cộng và bị trừ.
 ///
 /// Xem theo tuần hoặc theo tháng, lật về các kỳ trước bằng [lui]. Mỗi lần mở
 /// màn hình thì đánh dấu đã xem để huy hiệu đỏ về 0.
 class ThongBaoController extends GetxController {
+  void Function()? _huyDongBo;
+
   final _kpiService = KpiService();
 
   /// 'week' hoặc 'month'.
@@ -39,6 +42,14 @@ class ThongBaoController extends GetxController {
     super.onInit();
     tai();
     danhDauDaXem();
+    // Admin sửa trên web thì máy chủ báo, danh sách này tự tải lại
+    _huyDongBo = DongBo.dangKy(DongBo.kpi, () => tai());
+  }
+
+  @override
+  void onClose() {
+    _huyDongBo?.call();
+    super.onClose();
   }
 
   Future<void> tai() async {

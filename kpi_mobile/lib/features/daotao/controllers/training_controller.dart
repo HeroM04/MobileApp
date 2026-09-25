@@ -4,6 +4,7 @@ import '../../../core/network/api_client.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../home/controllers/kpi_controller.dart';
 import '../../../data/services/training_service.dart';
+import '../../../core/utils/dong_bo.dart';
 
 class TrainingRoom {
   final int id;
@@ -125,6 +126,8 @@ class TrainingRoom {
 }
 
 class TrainingController extends GetxController {
+  void Function()? _huyDongBo;
+
   final TrainingService _trainingService = TrainingService();
 
   var rooms = <TrainingRoom>[].obs;
@@ -137,6 +140,14 @@ class TrainingController extends GetxController {
     super.onInit();
     fetchRooms();
     fetchCompletedRooms(); // Load kho tài liệu ngay khi khởi động
+    // Admin sửa trên web thì máy chủ báo, danh sách này tự tải lại
+    _huyDongBo = DongBo.dangKy(DongBo.daoTao, () { fetchRooms(); fetchCompletedRooms(); });
+  }
+
+  @override
+  void onClose() {
+    _huyDongBo?.call();
+    super.onClose();
   }
 
   Future<List<Map<String, dynamic>>> fetchHistory(String date) async {

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../controllers/chot_can_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
 import '../../../core/widgets/thong_bao.dart';
+import '../../../core/utils/dong_bo.dart';
 
 class ChotCanView extends StatefulWidget {
   const ChotCanView({super.key});
@@ -172,6 +173,7 @@ class _ChotCanViewState extends State<ChotCanView> with SingleTickerProviderStat
   Widget _buildHistoryTab() {
     return HistoryDateListView(
       onFetchHistory: (date) => controller.fetchHistory(date),
+      loaiDongBo: DongBo.chotCan,
       emptyMessage: 'Không có yêu cầu chốt căn nào trong ngày này.',
       itemBuilder: (item, index) {
         final submittedAt = item['submittedAt'];

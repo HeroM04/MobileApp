@@ -5,6 +5,7 @@ import '../controllers/checkin_controller.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
 import 'leave_request_tab.dart';
+import '../../../core/utils/dong_bo.dart';
 
 class CheckinView extends StatelessWidget {
   final CheckinController controller = Get.put(CheckinController());
@@ -61,6 +62,7 @@ class CheckinView extends StatelessWidget {
   Widget _buildHistoryTab() {
     return HistoryDateListView(
       onFetchHistory: (date) => controller.fetchHistory(date),
+      loaiDongBo: DongBo.chamCong,
       emptyMessage: 'Không có dữ liệu chấm công trong ngày này.',
       itemBuilder: (item, index) {
         final checkinTime = item['checkinTime'];

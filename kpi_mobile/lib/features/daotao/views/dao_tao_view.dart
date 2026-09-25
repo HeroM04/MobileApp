@@ -7,6 +7,7 @@ import 'qr_token_display.dart';
 import 'dao_tao_1_on_1_view.dart';
 import 'training_archive_view.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
+import '../../../core/utils/dong_bo.dart';
 
 class DaoTaoView extends StatefulWidget {
   const DaoTaoView({super.key});
@@ -273,6 +274,7 @@ class _DaoTaoViewState extends State<DaoTaoView> {
   Widget _buildHistoryTab() {
     return HistoryDateListView(
       onFetchHistory: (date) => controller.fetchHistory(date),
+      loaiDongBo: DongBo.daoTao,
       emptyMessage: 'Không có buổi đào tạo nào trong ngày này.',
       itemBuilder: (item, index) {
         final attendedAt = item['attendedAt'];

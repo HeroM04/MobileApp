@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+import '../../core/utils/dong_bo.dart';
 
 /// Widget dùng chung cho tất cả History Tab - có DatePicker và danh sách lịch sử
 class HistoryDateListView extends StatefulWidget {
@@ -6,11 +9,17 @@ class HistoryDateListView extends StatefulWidget {
   final Widget Function(Map<String, dynamic> item, int index) itemBuilder;
   final String emptyMessage;
 
+  /// Loại dữ liệu để tự tải lại khi máy chủ báo đổi (xem [DongBo]). Có loại
+  /// này thì Admin duyệt/sửa/xóa trên web là danh sách cập nhật ngay, nhân sự
+  /// không phải thoát ra vào lại.
+  final String? loaiDongBo;
+
   const HistoryDateListView({
     super.key,
     required this.onFetchHistory,
     required this.itemBuilder,
     this.emptyMessage = 'Không có dữ liệu trong ngày này.',
+    this.loaiDongBo,
   });
 
   @override
@@ -21,11 +30,23 @@ class _HistoryDateListViewState extends State<HistoryDateListView> {
   DateTime _selectedDate = DateTime.now();
   List<Map<String, dynamic>> _items = [];
   bool _isLoading = false;
+  Worker? _ngheDongBo;
 
   @override
   void initState() {
     super.initState();
     _fetchForDate(_selectedDate);
+    final loai = widget.loaiDongBo;
+    if (loai != null) {
+      // Tải lại đúng ngày đang xem, không kéo người dùng về hôm nay
+      _ngheDongBo = ever(DongBo.phienBan(loai), (_) => _fetchForDate(_selectedDate, imLang: true));
+    }
+  }
+
+  @override
+  void dispose() {
+    _ngheDongBo?.dispose();
+    super.dispose();
   }
 
   String _formatDateParam(DateTime d) =>
@@ -33,18 +54,22 @@ class _HistoryDateListViewState extends State<HistoryDateListView> {
   String _formatDateDisplay(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
-  Future<void> _fetchForDate(DateTime date) async {
+  /// [imLang]: tải lại do máy chủ báo đổi — không hiện vòng xoay che danh sách,
+  /// và tải hỏng thì giữ danh sách cũ thay vì xóa trắng (mạng chập chờn một
+  /// nhịp không được làm mất thứ người dùng đang xem).
+  Future<void> _fetchForDate(DateTime date, {bool imLang = false}) async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
+    if (!imLang) setState(() => _isLoading = true);
     try {
       final result = await widget.onFetchHistory(_formatDateParam(date));
-      if (!mounted) return;
+      // Người dùng đã chọn ngày khác trong lúc chờ → bỏ kết quả cũ
+      if (!mounted || date != _selectedDate) return;
       setState(() => _items = result);
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || imLang) return;
       setState(() => _items = []);
     } finally {
-      if (mounted) {
+      if (mounted && !imLang) {
         setState(() => _isLoading = false);
       }
     }

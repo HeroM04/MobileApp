@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 
+import '../../../core/utils/dong_bo.dart';
 import '../../../data/services/kpi_service.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../thongbao/controllers/thong_bao_controller.dart';
@@ -49,11 +50,19 @@ class ShellController extends GetxController {
   final soThongBaoMoi = 0.obs;
 
   final _kpiService = KpiService();
+  void Function()? _huyDongBo;
 
   @override
   void onInit() {
     super.onInit();
     capNhatSoThongBao();
+    _huyDongBo = DongBo.dangKy(DongBo.kpi, () => capNhatSoThongBao());
+  }
+
+  @override
+  void onClose() {
+    _huyDongBo?.call();
+    super.onClose();
   }
 
   void changeMenuIndex(int index) {

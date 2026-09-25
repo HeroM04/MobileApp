@@ -1,8 +1,11 @@
 import 'package:get/get.dart';
 import '../../../core/network/api_client.dart';
 import '../../../data/services/feedback_service.dart';
+import '../../../core/utils/dong_bo.dart';
 
 class PhanHoiController extends GetxController {
+  void Function()? _huyDongBo;
+
   final FeedbackService _feedbackService = FeedbackService();
   var isLoading = false.obs;
   
@@ -13,6 +16,14 @@ class PhanHoiController extends GetxController {
   void onInit() {
     super.onInit();
     fetchMyFeedbacks();
+    // Admin sửa trên web thì máy chủ báo, danh sách này tự tải lại
+    _huyDongBo = DongBo.dangKy(DongBo.phanHoi, () => fetchMyFeedbacks());
+  }
+
+  @override
+  void onClose() {
+    _huyDongBo?.call();
+    super.onClose();
   }
 
   Future<void> fetchMyFeedbacks() async {

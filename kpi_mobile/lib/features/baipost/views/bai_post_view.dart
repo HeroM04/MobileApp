@@ -6,6 +6,7 @@ import '../../auth/controllers/auth_controller.dart';
 import '../controllers/bai_post_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
 import '../../../core/widgets/thong_bao.dart';
+import '../../../core/utils/dong_bo.dart';
 
 class BaiPostView extends StatefulWidget {
   const BaiPostView({super.key});
@@ -174,6 +175,7 @@ class _BaiPostViewState extends State<BaiPostView> {
   Widget _buildHistoryTab() {
     return HistoryDateListView(
       onFetchHistory: (date) => controller.fetchHistory(date),
+      loaiDongBo: DongBo.baiDang,
       emptyMessage: 'Không có bài post nào trong ngày này.',
       itemBuilder: (item, index) {
         final submittedAt = item['submittedAt'];

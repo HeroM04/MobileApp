@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import '../../../core/utils/dong_bo.dart';
 import '../../../data/services/kpi_service.dart';
 import '../../../data/services/websocket_service.dart';
 import '../../auth/controllers/auth_controller.dart';
@@ -21,11 +22,15 @@ class KpiController extends GetxController {
   var isLoadingDepartment = false.obs;
 
   final _kpiService = KpiService();
+  void Function()? _huyDongBo;
 
   @override
   void onInit() {
     super.onInit();
     fetchKpiData();
+    // Điểm KPI đã có kênh /topic/kpi khi app đang mở; dòng này để khi mở lại
+    // app từ nền (kênh có thể đã rớt, tin bị lỡ) điểm vẫn được tải lại.
+    _huyDongBo = DongBo.dangKy(DongBo.kpi, () => fetchKpiData());
     if (Get.isRegistered<AuthController>()) {
       final user = Get.find<AuthController>().currentUser;
       if (user != null && user['userId'] != null) {
@@ -36,6 +41,7 @@ class KpiController extends GetxController {
 
   @override
   void onClose() {
+    _huyDongBo?.call();
     WebSocketService().disconnect();
     super.onClose();
   }

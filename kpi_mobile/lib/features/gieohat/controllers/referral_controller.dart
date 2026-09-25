@@ -3,9 +3,12 @@ import 'package:get/get.dart';
 
 import '../../../data/services/referral_service.dart';
 import '../../home/controllers/kpi_controller.dart';
+import '../../../core/utils/dong_bo.dart';
 
 /// Quản lý đơn giới thiệu nhân sự mới của người đang đăng nhập.
 class ReferralController extends GetxController {
+  void Function()? _huyDongBo;
+
   final ReferralService _service = ReferralService();
 
   var isLoading = false.obs;
@@ -16,6 +19,14 @@ class ReferralController extends GetxController {
   void onInit() {
     super.onInit();
     loadMine();
+    // Admin sửa trên web thì máy chủ báo, danh sách này tự tải lại
+    _huyDongBo = DongBo.dangKy(DongBo.gieoHat, () => loadMine());
+  }
+
+  @override
+  void onClose() {
+    _huyDongBo?.call();
+    super.onClose();
   }
 
   Future<void> loadMine() async {
