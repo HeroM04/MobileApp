@@ -448,8 +448,12 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
     final fullName = user['fullName'] ?? 'Nhân viên';
     final role = user['role'] ?? 'SALE';
 
-    // Kiểm tra xem đã có tên trong phòng chưa
-    final alreadyAttended = widget.room.participants.any((p) => p['name'] == fullName);
+    // Kiểm tra xem đã có tên trong phòng chưa — so theo mã người dùng, so tên
+    // thì hai người trùng họ tên sẽ chặn nhầm người đến sau
+    final uid = user['userId']?.toString();
+    final alreadyAttended = widget.room.participants.any((p) => p['userId'] != null && uid != null
+        ? p['userId'].toString() == uid
+        : p['name'] == fullName);
     if (alreadyAttended) {
       snack(
         "Thông báo",
@@ -487,8 +491,8 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
       });
 
       // Bắn API điểm danh với mã hợp lệ
-      final success = await controller.attendRoomByCode(scannedCode.toString());
-      if (success) {
+      final loi = await controller.attendRoomByCode(scannedCode.toString(), roomId: widget.room.id);
+      if (loi == null) {
         // Cập nhật lại UI lập tức
         await controller.reloadRoomDetails(widget.room.id);
         try {
@@ -509,11 +513,11 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
         );
       } else {
         snack(
-          "Thất bại", 
-          "Điểm danh không thành công. Hãy chắc chắn bạn chưa điểm danh và lớp chưa đầy.", 
-          backgroundColor: Colors.red, 
+          "Chưa điểm danh được",
+          loi,
+          backgroundColor: Colors.red,
           colorText: Colors.white,
-          duration: const Duration(seconds: 4)
+          duration: const Duration(seconds: 5)
         );
       }
 

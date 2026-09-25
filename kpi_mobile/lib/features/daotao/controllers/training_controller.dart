@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_error.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../home/controllers/kpi_controller.dart';
 import '../../../data/services/training_service.dart';
@@ -83,6 +84,7 @@ class TrainingRoom {
           } catch (_) {}
           
           parsedAttendees.add({
+            'userId': e['userId'],
             'name': e['fullName']?.toString() ?? 'Ẩn danh',
             'role': e['role']?.toString() ?? '',
             'time': timeStr,
@@ -193,20 +195,50 @@ class TrainingController extends GetxController {
     }
   }
 
-  Future<bool> attendRoomByCode(String code) async {
+  /// Điểm danh bằng mã vừa quét. Trả về null nếu đã được ghi nhận, ngược lại
+  /// là câu báo đúng lý do máy chủ đưa ra.
+  ///
+  /// Trước đây mọi lỗi gộp thành một câu "hãy chắc chắn lớp chưa đầy": mã QR
+  /// hết hạn, rớt mạng hay máy chủ chậm cũng báo thế, lớp 20/200 người vẫn bị
+  /// nghi là đầy mà không ai biết phải làm gì.
+  Future<String?> attendRoomByCode(String code, {int? roomId}) async {
     try {
       final response = await _trainingService.attendTraining(code);
       if (response['status'] == 'SUCCESS') {
-        // Refresh KPI and Room lists
-        if (Get.isRegistered<KpiController>()) {
-          Get.find<KpiController>().fetchKpiData();
-        }
-        fetchRooms();
-        return true;
+        _sauKhiDiemDanh();
+        return null;
       }
-      return false;
+      return response['message']?.toString() ?? 'Máy chủ không ghi nhận điểm danh.';
     } catch (e) {
       print('Error attending room: $e');
+      // Mạng chậm: máy chủ có thể đã lưu xong mà app không kịp nhận trả lời.
+      // Hỏi lại danh sách lớp, có tên mình rồi thì coi là thành công — bắt
+      // quét lại lúc đó chỉ nhận về "đã điểm danh rồi".
+      if (e is DioException && e.response == null && roomId != null
+          && await daCoTenTrongLop(roomId)) {
+        _sauKhiDiemDanh();
+        return null;
+      }
+      return describeApiFailure(e, action: 'quét').message;
+    }
+  }
+
+  void _sauKhiDiemDanh() {
+    if (Get.isRegistered<KpiController>()) {
+      Get.find<KpiController>().fetchKpiData();
+    }
+    fetchRooms();
+  }
+
+  /// Máy chủ đã có mình trong danh sách điểm danh của lớp chưa.
+  Future<bool> daCoTenTrongLop(int roomId) async {
+    try {
+      final uid = Get.find<AuthController>().currentUser['userId'];
+      if (uid == null) return false;
+      final response = await _trainingService.getSessionById(roomId);
+      final ds = response['data']?['attendees'];
+      return ds is List && ds.any((a) => a is Map && a['userId']?.toString() == uid.toString());
+    } catch (_) {
       return false;
     }
   }
