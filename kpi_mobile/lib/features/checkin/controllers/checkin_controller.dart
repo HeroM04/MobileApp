@@ -15,6 +15,7 @@ import '../../home/controllers/kpi_controller.dart';
 import '../../../core/network/api_client.dart';
 import 'package:dio/dio.dart';
 import '../../../core/widgets/thong_bao.dart';
+import '../../../core/utils/thu_nho_anh.dart';
 
 class CheckinController extends GetxController {
   var isLoading = false.obs;
@@ -249,8 +250,12 @@ class CheckinController extends GetxController {
   Future<File> _addWatermark(File originalFile, String address) async {
     try {
       final bytes = await originalFile.readAsBytes();
-      img.Image? image = img.decodeImage(bytes);
-      if (image == null) return originalFile;
+      img.Image? goc = img.decodeImage(bytes);
+      if (goc == null) return originalFile;
+      // Thu nhỏ TRƯỚC khi đóng dấu: chữ đóng dấu cỡ cố định theo pixel, làm sau
+      // thì trên ảnh gốc 4000 px chữ bé tí, thu nhỏ xong còn mờ hơn. Nhận diện
+      // khuôn mặt đã chạy trên ảnh gốc ở bước trước nên không bị ảnh hưởng.
+      final image = thuNhoAnh(goc);
 
       String timestamp = DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now());
       String watermarkText = "$timestamp\n$address";
