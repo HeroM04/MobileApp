@@ -193,7 +193,7 @@ class _PhanHoiViewState extends State<PhanHoiView> {
                   child: Center(
                     child: Padding(
                       padding: EdgeInsets.all(16),
-                      child: Text("Không tải được ảnh. Link xem ảnh có hạn 24 giờ — đổi ngày rồi quay lại để tải link mới.",
+                      child: Text("Không tải được ảnh. Kiểm tra mạng rồi mở lại.",
                           textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
                     ),
                   ),

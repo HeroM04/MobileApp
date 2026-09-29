@@ -8,8 +8,9 @@ class FeedbackService {
   /// Số ảnh đính kèm tối đa — khớp FeedbackService.TOI_DA_ANH bên máy chủ.
   static const toiDaAnh = 5;
 
-  /// Gửi góp ý. Có ảnh thì gửi nội dung + ảnh trong MỘT lượt (multipart): ảnh
-  /// lên kho S3 riêng tư, máy chủ chỉ lưu khóa ảnh. Không ảnh thì gửi JSON như cũ.
+  /// Gửi góp ý. Có ảnh thì gửi nội dung + ảnh trong MỘT lượt (multipart): máy
+  /// chủ đưa ảnh lên Cloudinary như các phần khác, chỉ lưu link. Không ảnh thì
+  /// gửi JSON như cũ.
   Future<Map<String, dynamic>> submitFeedback(Map<String, dynamic> data, {List<File> anh = const []}) async {
     if (anh.isEmpty) {
       final response = await ApiClient.dio.post('/feedbacks', data: data);
