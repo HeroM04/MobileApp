@@ -41,6 +41,15 @@ void main() {
     expect(menuCua('ADMIN'), isNot(contains('Thông báo')));
   });
 
+  test('mọi vai trò đều có mục Phản hồi để góp ý', () {
+    // Góp ý nhân sự mở cho tất cả, kể cả vai trò lạ chưa khai báo; máy chủ
+    // cũng chỉ đòi đăng nhập (POST /feedbacks: isAuthenticated)
+    for (final vaiTro in ['SALE', 'TRUONG_PHONG', 'VAN_PHONG', 'ADMIN', 'VAI_TRO_MOI']) {
+      expect(menuCua(vaiTro), contains('Phản hồi'), reason: vaiTro);
+      Get.reset();
+    }
+  });
+
   test('chỉ số menu giữ nguyên ý nghĩa sau khi lọc — mở đúng màn hình', () {
     Get.put<AuthController>(_AuthGia('VAN_PHONG'));
     final shell = ShellController();
