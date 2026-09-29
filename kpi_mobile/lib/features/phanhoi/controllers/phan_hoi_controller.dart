@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:get/get.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_error.dart';
 import '../../../data/services/feedback_service.dart';
 import '../../../core/utils/dong_bo.dart';
 
@@ -41,11 +44,14 @@ class PhanHoiController extends GetxController {
     }
   }
 
-  Future<bool> submitFeedback({
+  /// Gửi góp ý, kèm ảnh nếu có. Trả về null nếu thành công, ngược lại là câu
+  /// báo đúng lý do (ảnh không hợp lệ, mất mạng, máy chủ lỗi…).
+  Future<String?> submitFeedback({
     required String title,
     required String category,
     required String content,
     required int rating,
+    List<File> anh = const [],
   }) async {
     try {
       isLoading.value = true;
@@ -54,16 +60,16 @@ class PhanHoiController extends GetxController {
         'category': category,
         'content': content,
         'rating': rating,
-      });
+      }, anh: anh);
 
       if (response['status'] == 'SUCCESS') {
         fetchMyFeedbacks(); // Refresh history automatically
-        return true;
+        return null;
       }
-      return false;
+      return response['message']?.toString() ?? 'Máy chủ không nhận góp ý.';
     } catch (e) {
       print('Error submitting feedback: $e');
-      return false;
+      return describeApiFailure(e).message;
     } finally {
       isLoading.value = false;
     }

@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import '../controllers/phan_hoi_controller.dart';
+import '../../../data/services/feedback_service.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
 import '../../../core/widgets/thong_bao.dart';
 import '../../../core/utils/dong_bo.dart';
@@ -28,7 +32,9 @@ class _PhanHoiViewState extends State<PhanHoiView> {
 
   int _rating = 5;
 
-  bool _isSubmitting = false;
+  /// Ảnh chụp màn hình lỗi đính kèm — nhìn ảnh là biết lỗi ở đâu, khỏi tả dài.
+  final List<File> _anh = [];
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void dispose() {
@@ -37,17 +43,59 @@ class _PhanHoiViewState extends State<PhanHoiView> {
     super.dispose();
   }
 
+  int get _conChonDuoc => FeedbackService.toiDaAnh - _anh.length;
+
+  // Thu nhỏ ngay lúc chọn: ảnh chụp màn hình vẫn đọc rõ chữ ở 1600 px mà nhẹ
+  // hơn nhiều, gửi nhanh trên 4G
+  static const double _canhToiDa = 1600;
+  static const int _chatLuong = 80;
+
+  Future<void> _chonTuThuVien() async {
+    if (_conChonDuoc <= 0) return;
+    try {
+      final List<XFile> chon = _conChonDuoc >= 2
+          ? await _picker.pickMultiImage(
+              maxWidth: _canhToiDa, maxHeight: _canhToiDa, imageQuality: _chatLuong, limit: _conChonDuoc)
+          : [
+              if (await _picker.pickImage(
+                      source: ImageSource.gallery,
+                      maxWidth: _canhToiDa, maxHeight: _canhToiDa, imageQuality: _chatLuong)
+                  case final XFile x)
+                x
+            ];
+      if (chon.isEmpty) return;
+      setState(() => _anh.addAll(chon.take(_conChonDuoc).map((x) => File(x.path))));
+      if (chon.length > FeedbackService.toiDaAnh) {
+        snack("Tối đa ${FeedbackService.toiDaAnh} ảnh", "Chỉ giữ ${FeedbackService.toiDaAnh} ảnh đầu tiên.");
+      }
+    } catch (e) {
+      snack("Không mở được thư viện ảnh", "Kiểm tra quyền truy cập ảnh của ứng dụng trong Cài đặt.");
+    }
+  }
+
+  Future<void> _chupAnh() async {
+    if (_conChonDuoc <= 0) return;
+    try {
+      final x = await _picker.pickImage(
+          source: ImageSource.camera, maxWidth: _canhToiDa, maxHeight: _canhToiDa, imageQuality: _chatLuong);
+      if (x != null) setState(() => _anh.add(File(x.path)));
+    } catch (e) {
+      snack("Không mở được camera", "Kiểm tra quyền camera của ứng dụng trong Cài đặt.");
+    }
+  }
+
   void _submitFeedback() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final success = await controller.submitFeedback(
+    final loi = await controller.submitFeedback(
       title: _titleController.text,
       category: _selectedCategory,
       content: _contentController.text,
       rating: _rating,
+      anh: List.of(_anh),
     );
 
-    if (success) {
+    if (loi == null) {
       snack(
         "Gửi thành công",
         "Phản hồi đã được truyền qua hệ thống đến Ban quản lý. Ban giám đốc/HR sẽ phản hồi bạn sớm nhất!",
@@ -59,10 +107,110 @@ class _PhanHoiViewState extends State<PhanHoiView> {
         _titleController.clear();
         _contentController.clear();
         _rating = 5;
+        _anh.clear();
       });
     } else {
-      snack("Lỗi", "Không thể gửi phản hồi, vui lòng thử lại sau.", backgroundColor: Colors.red, colorText: Colors.white);
+      snack("Chưa gửi được", loi, backgroundColor: Colors.red, colorText: Colors.white,
+          duration: const Duration(seconds: 5));
     }
+  }
+
+  /// Khu chọn ảnh: ảnh đã chọn (bấm × để bỏ) + nút thêm từ thư viện / chụp mới.
+  Widget _khuAnh() {
+    Widget nutThem(IconData icon, String chu, VoidCallback onTap) => InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            width: 76, height: 76,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFCBD5E1)),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: const Color(0xFF0F2C59), size: 22),
+                const SizedBox(height: 4),
+                Text(chu, style: const TextStyle(fontSize: 11, color: Color(0xFF0F2C59))),
+              ],
+            ),
+          ),
+        );
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (var i = 0; i < _anh.length; i++)
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.file(_anh[i], width: 76, height: 76, fit: BoxFit.cover),
+              ),
+              Positioned(
+                top: -6, right: -6,
+                child: GestureDetector(
+                  onTap: () => setState(() => _anh.removeAt(i)),
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle),
+                    child: const Icon(Icons.close, size: 14, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        if (_conChonDuoc > 0) ...[
+          nutThem(Icons.photo_library_outlined, "Thư viện", _chonTuThuVien),
+          nutThem(Icons.photo_camera_outlined, "Chụp", _chupAnh),
+        ],
+      ],
+    );
+  }
+
+  /// Xem ảnh đính kèm cỡ lớn, phóng to bằng hai ngón.
+  void _xemAnh(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(12),
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              maxScale: 5,
+              child: Image.network(
+                url,
+                fit: BoxFit.contain,
+                loadingBuilder: (c, child, p) => p == null
+                    ? child
+                    : const SizedBox(height: 240, child: Center(child: CircularProgressIndicator(color: Colors.white))),
+                errorBuilder: (c, e, s) => const SizedBox(
+                  height: 200,
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text("Không tải được ảnh. Link xem ảnh có hạn 24 giờ — đổi ngày rồi quay lại để tải link mới.",
+                          textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 4, right: 4,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -191,8 +339,23 @@ class _PhanHoiViewState extends State<PhanHoiView> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       contentPadding: const EdgeInsets.all(12),
                     ),
-                    validator: (v) => v == null || v.isEmpty ? "Vui lòng nhập nội dung chi tiết" : null,
+                    // Có ảnh chụp màn hình thì được bỏ trống nội dung
+                    validator: (v) => (v == null || v.trim().isEmpty) && _anh.isEmpty
+                        ? "Vui lòng nhập nội dung chi tiết hoặc đính kèm ảnh"
+                        : null,
                   ),
+                  const SizedBox(height: 16),
+
+                  // Ảnh minh họa
+                  Text("ẢNH MINH HỌA (${_anh.length}/${FeedbackService.toiDaAnh})",
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
+                  const SizedBox(height: 4),
+                  const Text(
+                    "Không bắt buộc. Gặp lỗi thì chụp màn hình gửi kèm để bộ phận kỹ thuật biết lỗi ở đâu.",
+                    style: TextStyle(fontSize: 11.5, color: Colors.grey, height: 1.3),
+                  ),
+                  const SizedBox(height: 8),
+                  _khuAnh(),
                   const SizedBox(height: 16),
 
                   // Đánh giá sao
@@ -264,7 +427,10 @@ class _PhanHoiViewState extends State<PhanHoiView> {
         final bool hasReply = adminReply != null && adminReply.toString().trim().isNotEmpty;
         
         final isResolved = status == 'RESOLVED' || hasReply;
-        final statusText = isResolved ? "Dạ xử lý" : "Chờ xử lý";
+        final statusText = isResolved ? "Đã xử lý" : "Chờ xử lý";
+        final List<String> anh = (fb['imageUrls'] is List)
+            ? (fb['imageUrls'] as List).map((e) => e.toString()).toList()
+            : const [];
         final badgeColor = isResolved ? Colors.green : Colors.orange;
 
         return Container(
@@ -352,6 +518,30 @@ class _PhanHoiViewState extends State<PhanHoiView> {
                   child: Text(content, style: const TextStyle(fontSize: 13, color: Color(0xFF334155), height: 1.4)),
                 ),
               ),
+              if (anh.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 16, right: 16, top: 10),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final url in anh)
+                        GestureDetector(
+                          onTap: () => _xemAnh(url),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              url, width: 64, height: 64, fit: BoxFit.cover,
+                              errorBuilder: (c, e, s) => Container(
+                                width: 64, height: 64, color: const Color(0xFFF1F5F9),
+                                child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               if (hasReply) ...[
                 Padding(
                   padding: const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 16),

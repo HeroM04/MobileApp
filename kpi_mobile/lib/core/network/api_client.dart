@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'kho_token.dart';
 import 'package:get/get.dart' as getx;
 import '../../features/auth/controllers/auth_controller.dart';
 import '../constants/api_constants.dart';
@@ -11,27 +11,9 @@ class ApiClient {
   // Chế độ Mock Development để thiết kế UI nhanh không cần bật backend
   static const bool isDebugMode = false;
 
-  static const _secureStorage = FlutterSecureStorage(
-    wOptions: WindowsOptions(useBackwardCompatibility: false),
-  );
-
-  /// Đọc token an toàn – bắt lỗi CryptUnprotectData trên Windows
-  static Future<String?> _safeRead(String key) async {
-    try {
-      return await _secureStorage.read(key: key);
-    } catch (e) {
-      debugLog('⚠️ SecureStorage read lỗi ($key): $e');
-      debugLog('   → Xoá storage bị hỏng để tránh crash liên tục...');
-      try {
-        await _secureStorage.deleteAll();
-      } catch (_) {}
-      // Đăng xuất nếu AuthController đã sẵn sàng
-      if (getx.Get.isRegistered<AuthController>()) {
-        getx.Get.find<AuthController>().logout();
-      }
-      return null;
-    }
-  }
+  /// Đọc token. Đọc lỗi (máy đang khóa, kho khóa trục trặc) thì trả null và
+  /// giữ nguyên đăng nhập — xem [KhoToken].
+  static Future<String?> _safeRead(String key) => KhoToken.doc(key);
 
   static final Dio dio = _buildDio();
 
@@ -73,8 +55,8 @@ class ApiClient {
         final data = response.data['data'];
         final String newAccessToken = data['accessToken'];
         final String newRefreshToken = data['refreshToken'];
-        await _secureStorage.write(key: 'accessToken', value: newAccessToken);
-        await _secureStorage.write(key: 'refreshToken', value: newRefreshToken);
+        await KhoToken.ghi(KhoToken.accessToken, newAccessToken);
+        await KhoToken.ghi(KhoToken.refreshToken, newRefreshToken);
         // Token mới mang phòng ban/vai trò hiện tại của máy chủ — kéo hồ sơ về
         // cho khớp, chạy nền để không làm chậm yêu cầu đang chờ token.
         if (getx.Get.isRegistered<AuthController>()) {

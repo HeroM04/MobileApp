@@ -113,10 +113,40 @@ class _MyAppState extends State<MyApp> {
         },
         child: child,
       ),
-      // Lắng nghe thay đổi của isLoggedIn để vẽ giao diện phù hợp
-      home: Obx(() => authController.isLoggedIn.value
-          ? ShellView()
-          : const LoginView()),
+      // Lắng nghe thay đổi của isLoggedIn để vẽ giao diện phù hợp. Trong lúc
+      // còn đọc phiên đăng nhập lưu trong máy thì hiện màn chờ — hiện màn đăng
+      // nhập lúc này là người dùng tưởng bị đăng xuất.
+      home: Obx(() => authController.dangKiemTra.value
+          ? const _ManCho()
+          : authController.isLoggedIn.value
+              ? ShellView()
+              : const LoginView()),
+    );
+  }
+}
+
+/// Màn chờ vài trăm mili giây lúc mở app, trong khi đọc phiên đăng nhập.
+class _ManCho extends StatelessWidget {
+  const _ManCho();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Color(0xFF0F2C59),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('TRÍ LONG KPI',
+                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: 2)),
+            SizedBox(height: 20),
+            SizedBox(
+              width: 26, height: 26,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFFD4AF37)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -55,7 +55,7 @@
 	<string>Ứng dụng cần sử dụng Camera để chụp ảnh check-in thực địa, quét mã QR điểm danh và xác thực khuôn mặt</string>
 	<!-- image_picker: BẮT BUỘC khi chọn ảnh từ Thư viện (ImageSource.gallery) — thiếu sẽ crash -->
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Ứng dụng cần truy cập Thư viện ảnh để bạn chọn ảnh báo cáo thực chiến, bài đăng và đào tạo</string>
+	<string>Ứng dụng cần truy cập Thư viện ảnh để bạn chọn ảnh báo cáo thực chiến, bài đăng, đào tạo và ảnh chụp màn hình đính kèm góp ý</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Ứng dụng cần quyền lưu ảnh đã chụp vào Thư viện ảnh của bạn</string>
 	<!-- camera plugin: iOS yêu cầu khai báo micro khi khởi tạo camera có ghi âm -->

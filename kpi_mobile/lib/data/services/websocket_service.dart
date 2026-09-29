@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' if (dart.library.html) 'package:kpi_mobile/core/stubs/io_stub.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
+import '../../core/network/kho_token.dart';
 import 'package:get/get.dart';
 import '../../features/auth/controllers/auth_controller.dart';
 import '../../features/home/controllers/kpi_controller.dart';
@@ -19,14 +19,13 @@ class WebSocketService {
   WebSocketService._internal();
 
   StompClient? stompClient;
-  final _secureStorage = const FlutterSecureStorage();
 
   String get _wsUrl {
     return ApiConstants.wsUrl;
   }
 
   void connect(int userId) async {
-    final token = await _secureStorage.read(key: 'accessToken');
+    final token = await KhoToken.doc(KhoToken.accessToken);
     if (token == null) return;
 
     if (stompClient != null && stompClient!.isActive) return;

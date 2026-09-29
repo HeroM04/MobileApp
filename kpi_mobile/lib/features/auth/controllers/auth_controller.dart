@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart' as dio_pkg;
 import '../../../core/network/api_client.dart';
+import '../../../core/network/kho_token.dart';
 import '../../../core/network/api_error.dart';
 import '../../../data/services/push_service.dart';
 import '../../home/controllers/kpi_controller.dart';
@@ -17,7 +17,10 @@ class AuthController extends GetxController {
   var isLoading = false.obs;
   var currentUser = <String, dynamic>{}.obs;
 
-  final _secureStorage = const FlutterSecureStorage();
+  /// Đang đọc phiên đăng nhập lưu trong máy lúc mở app. Trong lúc này hiện màn
+  /// chờ, không hiện màn đăng nhập — trước đây màn đăng nhập nháy lên rồi mới
+  /// tự vào, người dùng tưởng phải đăng nhập lại và gõ mật khẩu.
+  var dangKiemTra = true.obs;
 
   AppLifecycleListener? _vongDoi;
   void Function()? _huyDongBo;
@@ -39,11 +42,14 @@ class AuthController extends GetxController {
     super.onClose();
   }
 
-  // 1. Kiểm tra trạng thái đăng nhập khi mở App
+  // 1. Kiểm tra trạng thái đăng nhập khi mở App — còn phiên là vào thẳng
   Future<void> checkLoginStatus() async {
     try {
-      final token = await _secureStorage.read(key: 'accessToken');
-      if (token != null) {
+      final token = await KhoToken.doc(KhoToken.accessToken);
+      final refresh = await KhoToken.doc(KhoToken.refreshToken);
+      // Access token hết hạn sau 1 giờ nhưng refresh token còn là vẫn vào được:
+      // yêu cầu đầu tiên bị 401 thì app tự làm mới
+      if (token != null || refresh != null) {
         final prefs = await SharedPreferences.getInstance();
         final userId = prefs.getInt('userId');
         final fullName = prefs.getString('fullName');
@@ -69,10 +75,49 @@ class AuthController extends GetxController {
           isLoggedIn.value = true;
           PushService().khoiDong(); // mở lại app khi đã đăng nhập
           dongBoHoSo();             // chạy nền, không giữ màn hình
+        } else if (await _khoiPhucHoSo()) {
+          // Còn token mà mất hồ sơ lưu máy: lấy lại từ máy chủ thay vì bắt đăng nhập
+          isLoggedIn.value = true;
+          PushService().khoiDong();
         }
       }
     } catch (e) {
       print("Lỗi kiểm tra trạng thái đăng nhập: $e");
+    } finally {
+      dangKiemTra.value = false;
+    }
+  }
+
+  /// Dựng lại hồ sơ từ máy chủ khi máy còn token nhưng mất bản lưu hồ sơ.
+  Future<bool> _khoiPhucHoSo() async {
+    try {
+      final res = await ApiClient.dio.get('/users/my-profile',
+          options: dio_pkg.Options(receiveTimeout: const Duration(seconds: 20)));
+      final data = res.data is Map ? res.data['data'] : null;
+      final user = data is Map ? data['user'] : null;
+      final id = user is Map ? (user['id'] as num?)?.toInt() : null;
+      if (user is! Map || id == null) return false;
+      final dept = user['department'] is Map ? user['department'] as Map : const {};
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('userId', id);
+      await prefs.setString('fullName', user['fullName']?.toString() ?? 'Nhân viên');
+      await prefs.setString('phoneNumber', user['phoneNumber']?.toString() ?? '');
+      await prefs.setString('role', user['role']?.toString() ?? 'SALE');
+      currentUser.value = {
+        'userId': id,
+        'fullName': user['fullName']?.toString() ?? 'Nhân viên',
+        'phoneNumber': user['phoneNumber']?.toString() ?? '',
+        'role': user['role']?.toString() ?? 'SALE',
+        'departmentId': (dept['id'] as num?)?.toInt(),
+        'departmentName': dept['name']?.toString() ?? '',
+        'officeLat': (dept['officeLat'] as num?)?.toDouble() ?? 0.0,
+        'officeLng': (dept['officeLng'] as num?)?.toDouble() ?? 0.0,
+        'allowedRadius': (dept['allowedRadius'] as num?)?.toInt() ?? 100,
+      };
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -220,8 +265,8 @@ class AuthController extends GetxController {
 
 
         // Lưu tokens vào Secure Storage
-        await _secureStorage.write(key: 'accessToken', value: 'mock_jwt_access_token_sale_a');
-        await _secureStorage.write(key: 'refreshToken', value: 'mock_jwt_refresh_token_sale_a');
+        await KhoToken.ghi(KhoToken.accessToken, 'mock_jwt_access_token_sale_a');
+        await KhoToken.ghi(KhoToken.refreshToken, 'mock_jwt_refresh_token_sale_a');
 
         // Lưu profile vào SharedPreferences
         final prefs = await SharedPreferences.getInstance();
@@ -260,8 +305,8 @@ class AuthController extends GetxController {
           final data = response.data['data'];
           
           // Lưu tokens vào Secure Storage
-          await _secureStorage.write(key: 'accessToken', value: data['accessToken']);
-          await _secureStorage.write(key: 'refreshToken', value: data['refreshToken']);
+          await KhoToken.ghi(KhoToken.accessToken, data['accessToken']);
+          await KhoToken.ghi(KhoToken.refreshToken, data['refreshToken']);
 
           // Lưu profile vào SharedPreferences
           final prefs = await SharedPreferences.getInstance();
@@ -333,12 +378,10 @@ class AuthController extends GetxController {
     // 1) Giữ lại token để báo máy chủ, xong dọn sạch máy
     String? accessToken;
     String? refreshToken;
-    try {
-      accessToken = await _secureStorage.read(key: 'accessToken');
-      refreshToken = await _secureStorage.read(key: 'refreshToken');
-    } catch (_) {}
-    try { await _secureStorage.delete(key: 'accessToken'); } catch (_) {}
-    try { await _secureStorage.delete(key: 'refreshToken'); } catch (_) {}
+    accessToken = await KhoToken.doc(KhoToken.accessToken);
+    refreshToken = await KhoToken.doc(KhoToken.refreshToken);
+    await KhoToken.xoa(KhoToken.accessToken);
+    await KhoToken.xoa(KhoToken.refreshToken);
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear(); // XÓA SẠCH toàn bộ cache thay vì xóa từng key
