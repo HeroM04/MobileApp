@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import '../controllers/training_controller.dart';
 import '../../../data/services/upload_service.dart';
 import '../../../core/widgets/thong_bao.dart';
+import '../../../core/utils/dong_dau_anh.dart';
+import '../../auth/controllers/auth_controller.dart';
 
 class DaoTao1On1View extends StatefulWidget {
   @override
@@ -17,18 +19,40 @@ class _DaoTao1On1ViewState extends State<DaoTao1On1View> {
   final ImagePicker _picker = ImagePicker();
   File? _image;
   bool _isSubmitting = false;
+  bool _dangDongDau = false;
 
+  /// Chụp hoặc chọn ảnh rồi đóng dấu giờ, ngày, địa điểm lên ảnh — giống ảnh
+  /// Thực chiến. Đang dùng ứng dụng giả vị trí thì không nhận ảnh, như chấm công.
   Future<void> _pickImage(ImageSource source) async {
     final pickedFile = await _picker.pickImage(
       source: source,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      imageQuality: 85,
+      maxWidth: 1600,
+      maxHeight: 1600,
+      imageQuality: 90,
     );
-    if (pickedFile != null) {
-      setState(() {
-        _image = File(pickedFile.path);
-      });
+    if (pickedFile == null) return;
+
+    setState(() => _dangDongDau = true);
+    try {
+      final viTri = await layViTriChup();
+      if (!viTri.dung) {
+        snack(viTri.trangThai == TrangThaiViTri.gia ? 'Cảnh báo bảo mật' : 'Chưa gắn được địa điểm',
+            viTri.loiChoNguoiDung,
+            backgroundColor: Colors.redAccent, colorText: Colors.white, duration: const Duration(seconds: 4));
+        return;
+      }
+      final user = Get.find<AuthController>().currentUser;
+      final daDongDau = await dongDauAnh(
+        File(pickedFile.path),
+        diaChi: viTri.diaChi,
+        hoTen: (user['fullName'] ?? 'Không rõ').toString(),
+        phong: (user['departmentName'] ?? 'Không rõ').toString(),
+      );
+      if (mounted) setState(() => _image = daDongDau);
+      snack('Ảnh đã ghi nhận', 'Đã gắn thời gian & địa điểm vào ảnh.',
+          backgroundColor: Colors.green, colorText: Colors.white, duration: const Duration(seconds: 2));
+    } finally {
+      if (mounted) setState(() => _dangDongDau = false);
     }
   }
 
@@ -168,7 +192,7 @@ class _DaoTao1On1ViewState extends State<DaoTao1On1View> {
             ),
             const SizedBox(height: 10),
             GestureDetector(
-              onTap: _showImagePickerModal,
+              onTap: _dangDongDau ? null : _showImagePickerModal,
               child: Container(
                 width: double.infinity,
                 height: 180,
@@ -177,7 +201,16 @@ class _DaoTao1On1ViewState extends State<DaoTao1On1View> {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.grey.shade300, width: 2),
                 ),
-                child: _image == null
+                child: _dangDongDau
+                    ? const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(color: Color(0xFFD4AF37)),
+                          SizedBox(height: 10),
+                          Text('Đang gắn thời gian & địa điểm…', style: TextStyle(color: Colors.black54)),
+                        ],
+                      )
+                    : _image == null
                     ? Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -206,7 +239,7 @@ class _DaoTao1On1ViewState extends State<DaoTao1On1View> {
               width: double.infinity,
               height: 54,
               child: ElevatedButton(
-                onPressed: _isSubmitting ? null : _submit,
+                onPressed: _isSubmitting || _dangDongDau ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0F2C59),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(27)),
