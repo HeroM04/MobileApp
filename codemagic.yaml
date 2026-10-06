@@ -7,7 +7,8 @@
 #  Có 3 workflow:
 #    - ios-testflight  : build + tự đẩy lên TestFlight (dùng khi phát hành)
 #    - ios-unsigned    : build thử KHÔNG cần tài khoản Apple (kiểm tra code)
-#    - android-firebase: build APK + phát hành cho nhân viên qua Firebase
+#    - android-firebase: build APK + phát hành qua Firebase và GitHub Releases
+#                        (app nhân viên tự hỏi "Cập nhật / Để sau")
 # ============================================================
 
 workflows:
@@ -284,6 +285,12 @@ workflows:
         # App ID của ứng dụng Android trên Firebase (Project settings > Your apps).
         # Đây là mã định danh công khai, không phải khóa bí mật.
         FIREBASE_APP_ID: "1:4323767453:android:1d2051ba4523a5e8fb1074"
+        # Kho GitHub CÔNG KHAI chỉ để chứa bản phát hành (APK + phien-ban.json).
+        # App đọc bản mới nhất ở đây để tự hỏi "Cập nhật / Để sau"
+        # (kpi_mobile/lib/core/utils/cap_nhat_app.dart). Đổi tên kho thì sửa ở đây.
+        # Cần biến bí mật GITHUB_TOKEN trong nhóm android_signing; thiếu thì
+        # bước đăng bản phát hành tự bỏ qua, build vẫn chạy như cũ.
+        KHO_PHAT_HANH: "HeroM04/kpi-trilong-app"
 
     scripts:
       - name: Nap khoa ky so
@@ -367,9 +374,14 @@ workflows:
         script: |
           cd $FLUTTER_PROJECT_DIR
           # Số build tăng dần theo số lần build của Codemagic, để Android luôn
-          # cho phép cài đè bản mới lên bản cũ.
+          # cho phép cài đè bản mới lên bản cũ. Truyền cả vào code (SO_BUILD) để
+          # app so với bản mới nhất trên GitHub Releases mà tự hỏi cập nhật.
+          SO_BUILD=$(($PROJECT_BUILD_NUMBER + 10))
+          echo "SO_BUILD=$SO_BUILD" >> $CM_ENV
           flutter build apk --release \
-            --build-number=$(($PROJECT_BUILD_NUMBER + 10))
+            --build-number=$SO_BUILD \
+            --dart-define=SO_BUILD=$SO_BUILD \
+            --dart-define=KHO_PHAT_HANH=$KHO_PHAT_HANH
 
       - name: Kiem tra chu ky APK
         script: |
@@ -403,6 +415,52 @@ workflows:
             exit 1
           fi
           echo "Chu ky release hop le."
+
+      # Đăng bản phát hành lên GitHub Releases để app của nhân viên tự hỏi cập
+      # nhật — không phải gửi file APK cho từng người nữa.
+      #
+      # Tùy chọn khi bấm "Start new build" trên Codemagic (Environment variables):
+      #   GHI_CHU_BAN_MOI   = vài dòng "bản này có gì mới", hiện trong hộp cập nhật
+      #   BAT_BUOC_CAP_NHAT = true  → ẩn nút "Để sau" (chỉ dùng khi bản cũ không
+      #                               còn chạy đúng, vd. máy chủ đổi API)
+      - name: Dang ban phat hanh len GitHub
+        script: |
+          set -e
+          cd $FLUTTER_PROJECT_DIR
+          if [ -z "$GITHUB_TOKEN" ]; then
+            echo "CANH BAO: thieu GITHUB_TOKEN (nhom android_signing) — bo qua, app nhan vien se KHONG tu biet co ban moi."
+            exit 0
+          fi
+          if ! command -v gh >/dev/null 2>&1; then
+            echo "LOI: may build khong co GitHub CLI (gh)."
+            exit 1
+          fi
+
+          TEN=$(grep '^version:' pubspec.yaml | sed -E 's/^version:[[:space:]]*([^+[:space:]]+).*/\1/')
+          TAG="build-$SO_BUILD"
+          LINK="https://github.com/$KHO_PHAT_HANH/releases/download/$TAG/kpi-trilong.apk"
+          OUT=build/phat-hanh
+          rm -rf $OUT && mkdir -p $OUT
+          cp build/app/outputs/flutter-apk/app-release.apk $OUT/kpi-trilong.apk
+
+          SO_BUILD="$SO_BUILD" TEN="$TEN" LINK="$LINK" python3 - <<'PY' > $OUT/phien-ban.json
+          import json, os
+          print(json.dumps({
+              "soBuild": int(os.environ["SO_BUILD"]),
+              "ten": os.environ["TEN"],
+              "linkApk": os.environ["LINK"],
+              "ghiChu": os.environ.get("GHI_CHU_BAN_MOI", "").strip(),
+              "batBuoc": os.environ.get("BAT_BUOC_CAP_NHAT", "").strip().lower() == "true",
+          }, ensure_ascii=False))
+          PY
+          cat $OUT/phien-ban.json
+
+          GH_TOKEN="$GITHUB_TOKEN" gh release create "$TAG" \
+            $OUT/kpi-trilong.apk $OUT/phien-ban.json \
+            --repo "$KHO_PHAT_HANH" \
+            --title "KPI Trí Long $TEN (build $SO_BUILD)" \
+            --notes "${GHI_CHU_BAN_MOI:-Bản build $SO_BUILD}"
+          echo "Da dang: https://github.com/$KHO_PHAT_HANH/releases/tag/$TAG"
 
     artifacts:
       - kpi_mobile/build/app/outputs/flutter-apk/app-release.apk

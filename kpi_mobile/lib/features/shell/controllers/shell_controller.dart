@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 
+import '../../../core/utils/cap_nhat_app.dart';
 import '../../../core/utils/dong_bo.dart';
 import '../../../data/services/kpi_service.dart';
 import '../../auth/controllers/auth_controller.dart';
@@ -57,6 +58,8 @@ class ShellController extends GetxController {
     super.onInit();
     capNhatSoThongBao();
     _huyDongBo = DongBo.dangKy(DongBo.kpi, () => capNhatSoThongBao());
+    // Có bản app mới thì hỏi — đợi màn hình chính hiện xong đã cho khỏi giật
+    Future.delayed(const Duration(seconds: 2), CapNhatApp.kiemTra);
   }
 
   @override

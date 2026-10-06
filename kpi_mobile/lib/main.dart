@@ -8,6 +8,7 @@ import 'features/auth/views/login_view.dart';
 import 'features/shell/views/shell_view.dart';
 import 'features/thucchien/controllers/thuc_chien_controller.dart';
 import 'data/services/websocket_service.dart';
+import 'core/utils/cap_nhat_app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,7 +57,12 @@ class _AppLifecycle extends WidgetsBindingObserver {
       if (Get.isRegistered<AuthController>()) {
         final auth = Get.find<AuthController>();
         final uid = auth.currentUser['userId'];
-        if (auth.isLoggedIn.value && uid != null) WebSocketService().connect(uid);
+        if (auth.isLoggedIn.value && uid != null) {
+          WebSocketService().connect(uid);
+          // App để nền cả ngày ít khi khởi động lại — quay lại thì xem có bản mới
+          // không (tự giãn cách, không gọi dày hơn CapNhatApp.giuaHaiLan)
+          CapNhatApp.kiemTra();
+        }
       }
       if (Get.isRegistered<ThucChienController>()) {
         Get.find<ThucChienController>().startAutoSync();

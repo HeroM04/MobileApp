@@ -1,7 +1,18 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />    
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Tự cập nhật (core/utils/cap_nhat_app.dart): app tải APK bản mới rồi mở
+         trình cài đặt của Android. Thiếu quyền này Android từ chối cài. Lần đầu
+         Android tự hỏi người dùng "Cho phép cài ứng dụng từ nguồn này". -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- open_filex tự khai các quyền đọc ảnh/video/nhạc để mở file của người
+         dùng; app chỉ dùng nó mở APK trong thư mục riêng của app nên không cần. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
     <application
         android:label="Trí Long Land"
         android:name="${applicationName}"
