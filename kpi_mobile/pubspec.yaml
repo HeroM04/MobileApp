@@ -30,7 +30,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # Số build ở đây không quan trọng: Codemagic tự đặt lại khi build
 # (Android + 10, iOS + 100 so với số lần build của dự án), nên luôn tăng dần
 # và không bao giờ trùng.
-version: 1.3.0+8
+version: 1.2.0+8
 
 environment:
   sdk: ^3.10.4
