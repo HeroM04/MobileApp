@@ -504,7 +504,7 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
         Get.defaultDialog(
           title: "Điểm danh thành công",
           middleText: hasKpi
-              ? "Mã QR hợp lệ: ${widget.room.roomCode}\nĐã ghi nhận bạn tham gia lớp học. Nhận +5 điểm KPI tác phong!"
+              ? "Mã QR hợp lệ: ${widget.room.roomCode}\nĐã ghi nhận bạn tham gia lớp học. Dự đủ các buổi bắt buộc trong tuần sẽ được +15 điểm, chốt sau 23:00 Chủ nhật."
               : "Mã QR hợp lệ: ${widget.room.roomCode}\nĐã ghi nhận bạn tham gia lớp học thành công.",
           textConfirm: "Xác nhận",
           confirmTextColor: Colors.white,

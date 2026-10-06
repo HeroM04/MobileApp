@@ -13,6 +13,7 @@ import '../../thongbao/views/thong_bao_view.dart';
 import '../../profile/views/profile_view.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../../core/widgets/logo_widget.dart';
+import '../../../core/utils/huong_dan.dart';
 
 class ShellView extends StatelessWidget {
   final ShellController shellController = Get.put(ShellController());
@@ -96,6 +97,12 @@ class ShellView extends StatelessWidget {
           );
         }),
         actions: [
+          // Mở hướng dẫn đúng mục của màn hình đang xem
+          IconButton(
+            tooltip: 'Hướng dẫn',
+            icon: const Icon(Icons.help_outline_rounded, color: Color(0xFF0F2C59)),
+            onPressed: () => moHuongDan(shellController.selectedIndex.value),
+          ),
           _nutChuong(),
           // Hiển thị logo thương hiệu nhỏ gọn góc phải AppBar
           const Padding(
@@ -181,10 +188,33 @@ class ShellView extends StatelessWidget {
               }),
             ),
 
-            // Footer: Logout
+            // Footer: Hướng dẫn + Logout
             const Divider(color: Color(0xFFE2E8F0)),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+              child: InkWell(
+                onTap: () {
+                  Get.back(); // Đóng Drawer
+                  moHuongDan();
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.menu_book_outlined, color: Color(0xFF0F2C59), size: 22),
+                      SizedBox(width: 16),
+                      Text(
+                        'Hướng dẫn sử dụng',
+                        style: TextStyle(color: Color(0xFF0F2C59), fontWeight: FontWeight.w600, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
               child: InkWell(
                 onTap: () {
                   Get.back(); // Đóng Drawer

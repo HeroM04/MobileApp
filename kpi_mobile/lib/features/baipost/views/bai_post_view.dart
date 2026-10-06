@@ -296,7 +296,7 @@ class _BaiPostViewState extends State<BaiPostView> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    "Đăng bài truyền thông dự án lên Facebook/Zalo/TikTok và gửi link đối soát để cộng điểm KPI tác phong.",
+                    "Đăng bài truyền thông dự án lên Facebook/Zalo/TikTok và gửi link đối soát. Bài được duyệt +5 điểm nhóm Lan tỏa.",
                     style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.3),
                   ),
                   const Divider(height: 24),

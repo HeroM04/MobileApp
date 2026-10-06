@@ -52,12 +52,15 @@ class KpiController extends GetxController {
       if (response['status'] == 'SUCCESS') {
         final kpi = response['data'] ?? {};
         
-        // Calculate dynamic KPI Target based on number of Mondays in the month
-        final now = DateTime.now();
+        // Chỉ tiêu tháng = số thứ Hai của THÁNG KPI × 100. Tháng KPI là tháng của
+        // thứ Hai đầu tuần (như máy chủ): 1–4/10/2026 vẫn là KPI tháng 9, nên
+        // lấy tháng của thứ Hai tuần này chứ không lấy tháng dương lịch.
+        final homNay = DateTime.now();
+        final thuHai = DateTime(homNay.year, homNay.month, homNay.day - (homNay.weekday - 1));
         int mondays = 0;
-        int daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+        int daysInMonth = DateTime(thuHai.year, thuHai.month + 1, 0).day;
         for (int i = 1; i <= daysInMonth; i++) {
-          if (DateTime(now.year, now.month, i).weekday == DateTime.monday) {
+          if (DateTime(thuHai.year, thuHai.month, i).weekday == DateTime.monday) {
             mondays++;
           }
         }

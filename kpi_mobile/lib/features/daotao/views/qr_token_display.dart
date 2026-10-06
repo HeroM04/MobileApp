@@ -172,7 +172,7 @@ class _QrTokenDisplayState extends State<QrTokenDisplay> {
             Icon(Icons.info_outline, size: 12, color: Colors.green),
             SizedBox(width: 4),
             Text(
-              "Học viên quét để điểm danh (+5 KPI)",
+              "Học viên quét để điểm danh",
               style: TextStyle(fontSize: 11, color: Colors.green),
             ),
           ],

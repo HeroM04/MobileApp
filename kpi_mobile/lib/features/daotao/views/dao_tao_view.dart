@@ -398,7 +398,7 @@ class _DaoTaoViewState extends State<DaoTaoView> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    "Hãy lựa chọn phòng đào tạo đang diễn ra bên dưới để xem thông tin chi tiết, quét mã QR điểm danh chuyên cần (+5 điểm KPI tác phong).",
+                    "Hãy lựa chọn phòng đào tạo đang diễn ra bên dưới để xem thông tin chi tiết, quét mã QR để điểm danh. Dự đủ các buổi bắt buộc trong tuần được +15 điểm (chốt sau 23:00 Chủ nhật).",
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 11,

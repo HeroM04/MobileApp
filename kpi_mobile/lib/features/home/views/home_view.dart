@@ -235,15 +235,18 @@ class HomeView extends StatelessWidget {
 
   Widget _buildAssistantNudgeCard() {
     return Obx(() {
-      final kpi = kpiController.kpiPoints.value;
-      
+      // So theo % chỉ tiêu THÁNG (số thứ Hai × 100), không so với số điểm cố
+      // định: trước đây mới 100 điểm (1/4 chỉ tiêu 400) đã báo "hoàn thành 100%".
+      final mucTieu = kpiController.kpiTarget.value;
+      final tiLe = mucTieu > 0 ? kpiController.kpiPoints.value / mucTieu : 0.0;
+
       String assistantNudge = "Bạn đang hoàn thành tốt kế hoạch! Hãy tiếp tục duy trì tác phong.";
-      if (kpi < 50) {
+      if (tiLe < 0.5) {
         assistantNudge = "Chỉ số KPI của bạn hiện đang ở mức thấp. Trợ lý gợi ý bạn cần tích cực đi thị trường thực chiến (+10đ) và đăng bài truyền thông (+5đ).";
-      } else if (kpi < 80) {
-        assistantNudge = "Bạn đang gần chạm mốc đạt chỉ tiêu! Tối nay có lớp đào tạo của công ty, hãy quét mã chuyên cần để nhận thêm 5 điểm KPI tác phong.";
-      } else if (kpi >= 100) {
-        assistantNudge = "Tuyệt vời! Bạn đã xuất sắc hoàn thành 100% KPI chỉ tiêu tháng. Hãy nỗ lực chốt thêm căn để nhận thưởng hoa hồng không giới hạn.";
+      } else if (tiLe < 0.8) {
+        assistantNudge = "Bạn đang gần chạm mốc chỉ tiêu tháng! Đi đủ các buổi đào tạo trong tuần (+15đ), gặp khách (+10đ) và đăng bài (+5đ) để về đích.";
+      } else if (tiLe >= 1) {
+        assistantNudge = "Tuyệt vời! Bạn đã hoàn thành 100% KPI chỉ tiêu tháng. Hãy nỗ lực chốt thêm căn để nhận thưởng hoa hồng không giới hạn.";
       }
 
       return Container(
