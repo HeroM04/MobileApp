@@ -78,6 +78,72 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  group('xem theo tháng (lịch sử chấm công)', () {
+    String iso(int ngay, int gio) => DateTime(2026, 10, ngay, gio).toIso8601String();
+
+    test('gom theo ngày: ngày mới nhất trước, trong ngày sớm → muộn, bỏ mục không có giờ', () {
+      final nhom = nhomTheoNgay([
+        {'id': 1, 't': iso(2, 8)},
+        {'id': 2, 't': iso(5, 17)},
+        {'id': 3, 't': iso(5, 8)},
+        {'id': 4, 't': null},
+      ], (m) => m['t'] as String?);
+
+      expect(nhom.map((e) => e.key), [DateTime(2026, 10, 5), DateTime(2026, 10, 2)]);
+      expect(nhom.first.value.map((m) => m['id']), [3, 2]);
+      expect(nhom.last.value.map((m) => m['id']), [1]);
+    });
+
+    test('tiêu đề ngày tiếng Việt', () {
+      expect(tenNgay(DateTime(2026, 10, 5)), 'Thứ Hai, 05/10');
+      expect(tenNgay(DateTime(2026, 10, 4)), 'Chủ nhật, 04/10');
+    });
+
+    testWidgets('bấm "Theo tháng" → tải cả tháng, hiện tiêu đề từng ngày và từng lượt', (tester) async {
+      final thangDaHoi = <String>[];
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: HistoryDateListView(
+            onFetchHistory: (ngay) async => [],
+            onFetchMonth: (thang) async {
+              thangDaHoi.add(thang);
+              return [
+                {'loai': 'Check-in', 't': iso(5, 8)},
+                {'loai': 'Check-out', 't': iso(5, 17)},
+                {'loai': 'Check-in', 't': iso(2, 8)},
+              ];
+            },
+            thoiDiemCua: (m) => m['t'] as String?,
+            itemBuilder: (item, i) => Text('${item['loai']} ${DateTime.parse(item['t']).day}'),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      expect(thangDaHoi, isEmpty, reason: 'mặc định vẫn xem theo ngày');
+
+      await tester.tap(find.text('Theo tháng'));
+      await tester.pumpAndSettle();
+
+      final now = DateTime.now();
+      expect(thangDaHoi, ['${now.year}-${now.month.toString().padLeft(2, '0')}']);
+      expect(find.text('Thứ Hai, 05/10'), findsOneWidget);
+      expect(find.text('Thứ Sáu, 02/10'), findsOneWidget);
+      expect(find.text('Check-in 5'), findsOneWidget);
+      expect(find.text('Check-out 5'), findsOneWidget);
+      expect(find.text('2 ngày · 3 lượt'), findsOneWidget);
+    });
+
+    testWidgets('không truyền onFetchMonth thì không có nút chuyển (các tab khác giữ nguyên)', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: HistoryDateListView(onFetchHistory: (_) async => [], itemBuilder: (_, _) => const SizedBox()),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.text('Theo tháng'), findsNothing);
+    });
+  });
+
   group('nhãn và định dạng', () {
     test('trạng thái hiện tiếng Việt, không lộ mã', () {
       expect(statusLabel('APPROVED'), 'Đã duyệt');

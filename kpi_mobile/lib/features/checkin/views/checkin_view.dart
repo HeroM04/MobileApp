@@ -62,8 +62,11 @@ class CheckinView extends StatelessWidget {
   Widget _buildHistoryTab() {
     return HistoryDateListView(
       onFetchHistory: (date) => controller.fetchHistory(date),
+      onFetchMonth: (month) => controller.fetchHistoryMonth(month),
+      thoiDiemCua: (item) => item['checkinTime']?.toString(),
       loaiDongBo: DongBo.chamCong,
       emptyMessage: 'Không có dữ liệu chấm công trong ngày này.',
+      emptyMessageThang: 'Không có dữ liệu chấm công trong tháng này.',
       itemBuilder: (item, index) {
         final checkinTime = item['checkinTime'];
         final dateStr = formatIsoDate(checkinTime?.toString());

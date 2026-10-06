@@ -53,6 +53,14 @@ class CheckinController extends GetxController {
     }
     return [];
   }
+
+  /// Cả tháng ('yyyy-MM'), xếp sớm → muộn — tab Lịch sử chế độ "Theo tháng".
+  /// Lỗi thì ném ra để màn hình biết là lỗi chứ không phải tháng trống.
+  Future<List<Map<String, dynamic>>> fetchHistoryMonth(String month) async {
+    final response = await ApiClient.dio.get('/attendance/my-checkins', queryParameters: {'month': month});
+    final data = response.data is Map ? response.data['data'] : null;
+    return data is List ? List<Map<String, dynamic>>.from(data) : [];
+  }
   
   /// Bước 1: Gọi hàm chụp ảnh (Chỉ Camera)
   Future<void> takePhoto() async {
