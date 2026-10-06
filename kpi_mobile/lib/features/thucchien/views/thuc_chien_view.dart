@@ -8,6 +8,7 @@ import '../../home/controllers/kpi_controller.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../controllers/thuc_chien_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
+import '../../../data/services/lich_su_thang.dart';
 import '../../../core/widgets/thong_bao.dart';
 import '../../../core/utils/dong_bo.dart';
 
@@ -422,6 +423,9 @@ class _ThucChienViewState extends State<ThucChienView> {
   Widget _buildHistoryTab() {
     return HistoryDateListView(
       onFetchHistory: (date) => controller.fetchHistory(date),
+      onFetchMonth: (month) => taiLichSuThang('/field-battle/my-battles', month),
+      thoiDiemCua: (item) => item['submittedAt']?.toString(),
+      emptyMessageThang: 'Không có báo cáo thực chiến nào trong tháng này.',
       loaiDongBo: DongBo.thucChien,
       emptyMessage: 'Không có báo cáo thực chiến nào trong ngày này.',
       itemBuilder: (item, index) {

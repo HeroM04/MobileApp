@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../controllers/phan_hoi_controller.dart';
 import '../../../data/services/feedback_service.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
+import '../../../data/services/lich_su_thang.dart';
 import '../../../core/widgets/thong_bao.dart';
 import '../../../core/utils/dong_bo.dart';
 
@@ -414,6 +415,9 @@ class _PhanHoiViewState extends State<PhanHoiView> {
   Widget _buildHistoryTab() {
     return HistoryDateListView(
       onFetchHistory: (date) => controller.fetchHistory(date),
+      onFetchMonth: (month) => taiLichSuThang('/feedbacks/my', month),
+      thoiDiemCua: (item) => item['createdAt']?.toString(),
+      emptyMessageThang: 'Không có phản hồi nào trong tháng này.',
       loaiDongBo: DongBo.phanHoi,
       emptyMessage: 'Không có phản hồi nào trong ngày này.',
       itemBuilder: (fb, index) {
@@ -583,7 +587,8 @@ class _PhanHoiViewState extends State<PhanHoiView> {
   String _formatDateTime(String? dateTimeStr) {
     if (dateTimeStr == null) return '';
     try {
-      final dt = DateTime.parse(dateTimeStr);
+      // toLocal: máy chủ nay gửi kèm múi giờ ("...Z") — không đổi thì hiện giờ UTC, sớm 7 tiếng
+      final dt = DateTime.parse(dateTimeStr).toLocal();
       return "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} ${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}";
     } catch (e) {
       return dateTimeStr;

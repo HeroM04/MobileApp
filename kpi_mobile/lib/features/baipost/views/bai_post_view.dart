@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../controllers/bai_post_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
+import '../../../data/services/lich_su_thang.dart';
 import '../../../core/widgets/thong_bao.dart';
 import '../../../core/utils/dong_bo.dart';
 
@@ -175,6 +176,9 @@ class _BaiPostViewState extends State<BaiPostView> {
   Widget _buildHistoryTab() {
     return HistoryDateListView(
       onFetchHistory: (date) => controller.fetchHistory(date),
+      onFetchMonth: (month) => taiLichSuThang('/social-posts/my-posts', month),
+      thoiDiemCua: (item) => item['submittedAt']?.toString(),
+      emptyMessageThang: 'Không có bài post nào trong tháng này.',
       loaiDongBo: DongBo.baiDang,
       emptyMessage: 'Không có bài post nào trong ngày này.',
       itemBuilder: (item, index) {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/chot_can_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
+import '../../../data/services/lich_su_thang.dart';
 import '../../../core/widgets/thong_bao.dart';
 import '../../../core/utils/dong_bo.dart';
 
@@ -173,6 +174,9 @@ class _ChotCanViewState extends State<ChotCanView> with SingleTickerProviderStat
   Widget _buildHistoryTab() {
     return HistoryDateListView(
       onFetchHistory: (date) => controller.fetchHistory(date),
+      onFetchMonth: (month) => taiLichSuThang('/deals/my-deals', month),
+      thoiDiemCua: (item) => item['submittedAt']?.toString(),
+      emptyMessageThang: 'Không có yêu cầu chốt căn nào trong tháng này.',
       loaiDongBo: DongBo.chotCan,
       emptyMessage: 'Không có yêu cầu chốt căn nào trong ngày này.',
       itemBuilder: (item, index) {
