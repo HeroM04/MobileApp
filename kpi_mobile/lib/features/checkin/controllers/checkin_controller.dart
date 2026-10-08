@@ -16,6 +16,7 @@ import '../../home/controllers/kpi_controller.dart';
 import '../../../core/network/api_client.dart';
 import 'package:dio/dio.dart';
 import '../../../core/widgets/thong_bao.dart';
+import '../../../core/utils/quyen_anh.dart';
 import '../../../core/utils/thu_nho_anh.dart';
 
 class CheckinController extends GetxController {
@@ -133,6 +134,7 @@ class CheckinController extends GetxController {
         }
       }
     } catch (e) {
+      if (await xuLyLoiQuyenAnh(e)) return;
       snack("Lỗi", "Không thể lấy hình ảnh: $e");
     } finally {
       isLoading.value = false;

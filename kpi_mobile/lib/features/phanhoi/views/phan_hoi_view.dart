@@ -8,6 +8,7 @@ import '../../../data/services/feedback_service.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
 import '../../../data/services/lich_su_thang.dart';
 import '../../../core/widgets/thong_bao.dart';
+import '../../../core/utils/quyen_anh.dart';
 import '../../../core/utils/dong_bo.dart';
 
 class PhanHoiView extends StatefulWidget {
@@ -70,6 +71,7 @@ class _PhanHoiViewState extends State<PhanHoiView> {
         snack("Tối đa ${FeedbackService.toiDaAnh} ảnh", "Chỉ giữ ${FeedbackService.toiDaAnh} ảnh đầu tiên.");
       }
     } catch (e) {
+      if (await xuLyLoiQuyenAnh(e)) return;
       snack("Không mở được thư viện ảnh", "Kiểm tra quyền truy cập ảnh của ứng dụng trong Cài đặt.");
     }
   }
@@ -81,6 +83,7 @@ class _PhanHoiViewState extends State<PhanHoiView> {
           source: ImageSource.camera, maxWidth: _canhToiDa, maxHeight: _canhToiDa, imageQuality: _chatLuong);
       if (x != null) setState(() => _anh.add(File(x.path)));
     } catch (e) {
+      if (await xuLyLoiQuyenAnh(e)) return;
       snack("Không mở được camera", "Kiểm tra quyền camera của ứng dụng trong Cài đặt.");
     }
   }

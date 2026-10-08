@@ -7,6 +7,7 @@ import '../controllers/bai_post_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
 import '../../../data/services/lich_su_thang.dart';
 import '../../../core/widgets/thong_bao.dart';
+import '../../../core/utils/quyen_anh.dart';
 import '../../../core/utils/dong_bo.dart';
 
 class BaiPostView extends StatefulWidget {
@@ -45,6 +46,7 @@ class _BaiPostViewState extends State<BaiPostView> {
         });
       }
     } catch (e) {
+      if (await xuLyLoiQuyenAnh(e)) return;
       snack("Lỗi", "Không thể chọn hình ảnh: $e");
     }
   }

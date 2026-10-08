@@ -10,6 +10,7 @@ import '../controllers/thuc_chien_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
 import '../../../data/services/lich_su_thang.dart';
 import '../../../core/widgets/thong_bao.dart';
+import '../../../core/utils/quyen_anh.dart';
 import '../../../core/utils/dong_bo.dart';
 
 class ThucChienView extends StatefulWidget {
@@ -111,6 +112,7 @@ class _ThucChienViewState extends State<ThucChienView> {
         );
       }
     } catch (e) {
+      if (await xuLyLoiQuyenAnh(e)) return;
       snack("Lỗi", "Không thể chụp ảnh: $e");
     }
   }

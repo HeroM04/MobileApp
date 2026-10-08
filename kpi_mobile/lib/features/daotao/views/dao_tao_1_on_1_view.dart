@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../controllers/training_controller.dart';
 import '../../../data/services/upload_service.dart';
 import '../../../core/widgets/thong_bao.dart';
+import '../../../core/utils/quyen_anh.dart';
 import '../../../core/utils/dong_dau_anh.dart';
 import '../../auth/controllers/auth_controller.dart';
 
@@ -24,12 +25,19 @@ class _DaoTao1On1ViewState extends State<DaoTao1On1View> {
   /// Chụp hoặc chọn ảnh rồi đóng dấu giờ, ngày, địa điểm lên ảnh — giống ảnh
   /// Thực chiến. Đang dùng ứng dụng giả vị trí thì không nhận ảnh, như chấm công.
   Future<void> _pickImage(ImageSource source) async {
-    final pickedFile = await _picker.pickImage(
-      source: source,
-      maxWidth: 1600,
-      maxHeight: 1600,
-      imageQuality: 90,
-    );
+    // Trước đây không bắt lỗi ở đây: bị từ chối quyền là bấm vào không thấy gì
+    final XFile? pickedFile;
+    try {
+      pickedFile = await _picker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 90,
+      );
+    } catch (e) {
+      if (!await xuLyLoiQuyenAnh(e)) snack('Lỗi', 'Không mở được camera hoặc thư viện ảnh.');
+      return;
+    }
     if (pickedFile == null) return;
 
     setState(() => _dangDongDau = true);
