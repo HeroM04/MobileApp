@@ -29,21 +29,15 @@ class _BaiPostViewState extends State<BaiPostView> {
   /// VIDEO = video xây kênh, POST = bài đăng/story. Cả hai cùng 5đ nhóm Lan tỏa,
   /// tách ra để Admin theo dõi được ai chịu khó làm video.
   String _contentType = 'POST';
-  bool _isOcrScanning = false;
-  bool _scanCompleted = false;
-  bool _isValidPost = false;
 
-  final List<String> _requiredHashtags = ["#trilongland", "#bds", "#kpi"];
-  final List<String> _foundHashtags = [];
+  /// Gợi ý hashtag — chỉ để nhắc, không chặn gửi (Admin xem trên ảnh chụp).
+  final List<String> _goiYHashtag = ["#trilongland", "#bds", "#kpi"];
 
   Future<void> _pickScreenshot() async {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
       if (image != null) {
-        setState(() {
-          _screenshot = File(image.path);
-          _scanCompleted = false;
-        });
+        setState(() => _screenshot = File(image.path));
       }
     } catch (e) {
       if (await xuLyLoiQuyenAnh(e)) return;
@@ -51,87 +45,53 @@ class _BaiPostViewState extends State<BaiPostView> {
     }
   }
 
-  void _runOcrScan() async {
+  /// Gửi bài. Chỉ bắt buộc ẢNH CHỤP MÀN HÌNH — story, video xây kênh nhiều khi
+  /// không có link hay caption để dán. Link và caption có thì gửi kèm.
+  ///
+  /// Trước đây có bước "AI quét hashtag": thực chất chờ 2,5 giây rồi tìm chữ
+  /// trong ô caption, và chặn gửi nếu caption thiếu #trilongland — nên bài
+  /// không có caption không gửi được. Admin đối chiếu trên ảnh chụp là đủ.
+  void _guiBai() async {
     if (!_formKey.currentState!.validate()) return;
     if (_screenshot == null) {
-      snack("Yêu cầu", "Vui lòng chọn ảnh chụp màn hình bài viết để đối soát!");
+      snack("Thiếu ảnh chụp", "Chọn ảnh chụp màn hình bài đăng để Admin đối chiếu.");
       return;
     }
 
-    setState(() {
-      _isOcrScanning = true;
-      _scanCompleted = false;
-      _foundHashtags.clear();
-    });
+    final link = _urlController.text.trim();
+    final failure = await controller.submitPost(
+      platform: link.contains("facebook") ? "FACEBOOK" : "OTHER",
+      contentType: _contentType,
+      link: link,
+      caption: _captionController.text.trim(),
+      screenshotUrl: _screenshot!.path,
+    );
 
-    // Giả lập quét OCR trong 2.5 giây
-    await Future.delayed(const Duration(milliseconds: 2500));
-
-    // Thực hiện kiểm tra từ khóa dạng đơn giản (String.contains) trên nội dung text nhập vào
-    final textToCheck = _captionController.text.toLowerCase();
-    
-    for (var tag in _requiredHashtags) {
-      if (textToCheck.contains(tag)) {
-        _foundHashtags.add(tag);
-      }
-    }
-
-    // Bài viết được tính là hợp lệ nếu có link mạng xã hội và có ít nhất 2 hashtag yêu cầu (bao gồm bắt buộc #trilongland)
-    final bool hasCoreTag = _foundHashtags.contains("#trilongland");
-    final bool hasMinTags = _foundHashtags.length >= 2;
-
-    setState(() {
-      _isOcrScanning = false;
-      _scanCompleted = true;
-      _isValidPost = hasCoreTag && hasMinTags;
-    });
-
-    if (_isValidPost) {
-      final failure = await controller.submitPost(
-        platform: _urlController.text.contains("facebook") ? "FACEBOOK" : "OTHER",
-        contentType: _contentType,
-        link: _urlController.text,
-        caption: _captionController.text,
-        screenshotUrl: _screenshot!.path,
+    if (failure == null) {
+      Get.defaultDialog(
+        title: "Đã gửi bài",
+        middleText: "Bài đang chờ Admin duyệt. Được duyệt bạn nhận +5 điểm nhóm Lan tỏa.",
+        textConfirm: "Đã hiểu",
+        confirmTextColor: Colors.white,
+        buttonColor: const Color(0xFF0F2C59),
+        onConfirm: () => Get.back(),
       );
-
-      if (failure == null) {
-        Get.defaultDialog(
-          title: "Xác thực thành công",
-          middleText: "Hệ thống đã nhận diện bài viết hợp lệ và cập nhật điểm KPI truyền thông của bạn!",
-          textConfirm: "Tuyệt vời",
-          confirmTextColor: Colors.white,
-          buttonColor: const Color(0xFF0F2C59),
-          onConfirm: () => Get.back(),
-        );
-        setState(() {
-          _urlController.clear();
-          _captionController.clear();
-          _screenshot = null;
-          _isValidPost = false;
-        });
-      } else {
-        // Nói rõ hỏng ở đâu và ai sửa được, thay cho câu chung chung trước đây
-        snack(
-          failure.title,
-          failure.isUserFixable
-              ? failure.message
-              : "${failure.message}\n(Lỗi hệ thống — nếu lặp lại, báo bộ phận kỹ thuật)",
-          backgroundColor: failure.isUserFixable ? Colors.orange.shade800 : Colors.red.shade700,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 4),
-          isDismissible: true,
-        );
-      }
+      setState(() {
+        _urlController.clear();
+        _captionController.clear();
+        _screenshot = null;
+      });
     } else {
-      final thieu = _requiredHashtags.where((t) => !_foundHashtags.contains(t)).join('  ');
+      // Nói rõ hỏng ở đâu và ai sửa được, thay cho câu chung chung trước đây
       snack(
-        "Thiếu hashtag bắt buộc",
-        "Nội dung caption phải có #trilongland và ít nhất một trong #bds hoặc #kpi.\n"
-        "Đang thiếu: $thieu",
-        backgroundColor: Colors.orange.shade800,
+        failure.title,
+        failure.isUserFixable
+            ? failure.message
+            : "${failure.message}\n(Lỗi hệ thống — nếu lặp lại, báo bộ phận kỹ thuật)",
+        backgroundColor: failure.isUserFixable ? Colors.orange.shade800 : Colors.red.shade700,
         colorText: Colors.white,
         duration: const Duration(seconds: 4),
+        isDismissible: true,
       );
     }
   }
@@ -298,7 +258,7 @@ class _BaiPostViewState extends State<BaiPostView> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    "Đăng bài truyền thông dự án lên Facebook/Zalo/TikTok và gửi link đối soát. Bài được duyệt +5 điểm nhóm Lan tỏa.",
+                    "Đăng bài truyền thông dự án lên Facebook/Zalo/TikTok rồi gửi ảnh chụp màn hình bài đăng. Link và caption có thì dán, không có cũng được. Bài được duyệt +5 điểm nhóm Lan tỏa.",
                     style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.3),
                   ),
                   const Divider(height: 24),
@@ -316,7 +276,7 @@ class _BaiPostViewState extends State<BaiPostView> {
                   const SizedBox(height: 16),
 
                   // Đường dẫn bài đăng
-                  const Text("LINK BÀI VIẾT (FB/ZALO/TIKTOK)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
+                  const Text("LINK BÀI VIẾT (KHÔNG BẮT BUỘC)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
                   const SizedBox(height: 6),
                   TextFormField(
                     controller: _urlController,
@@ -326,31 +286,31 @@ class _BaiPostViewState extends State<BaiPostView> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
+                    // Để trống được (story, video không có link); có dán thì phải là link
                     validator: (v) {
-                      if (v == null || v.isEmpty) return "Vui lòng dán link bài đăng";
-                      if (!v.startsWith("http")) return "Đường dẫn không hợp lệ";
+                      final s = v?.trim() ?? '';
+                      if (s.isNotEmpty && !s.startsWith("http")) return "Link phải bắt đầu bằng http";
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
 
                   // Nội dung text bài viết
-                  const Text("NỘI DUNG CAPTION ĐÃ ĐĂNG", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
+                  const Text("CAPTION ĐÃ ĐĂNG (KHÔNG BẮT BUỘC)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
                   const SizedBox(height: 6),
                   TextFormField(
                     controller: _captionController,
                     maxLines: 4,
                     decoration: InputDecoration(
-                      hintText: "Nhập hoặc dán nội dung bài viết đăng (Để AI quét từ khóa hashtag)",
+                      hintText: "Dán nội dung bài viết nếu có",
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       contentPadding: const EdgeInsets.all(12),
                     ),
-                    validator: (v) => v == null || v.isEmpty ? "Vui lòng điền nội dung caption" : null,
                   ),
                   const SizedBox(height: 16),
 
                   // Đính kèm ảnh chụp màn hình bài đăng
-                  const Text("ẢNH CHỤP MÀN HÌNH BÀI ĐĂNG", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
+                  const Text("ẢNH CHỤP MÀN HÌNH BÀI ĐĂNG (BẮT BUỘC)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
                   const SizedBox(height: 8),
                   GestureDetector(
                     onTap: _pickScreenshot,
@@ -392,27 +352,22 @@ class _BaiPostViewState extends State<BaiPostView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          "Yêu cầu từ khoá tối thiểu (Chứa #trilongland và 1 tag phụ):",
+                          "Gợi ý: bài đăng nên có #trilongland và 1 tag phụ",
                           style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFB8860B)),
                         ),
                         const SizedBox(height: 6),
                         Row(
-                          children: _requiredHashtags.map((tag) {
-                            final found = _foundHashtags.contains(tag) && _scanCompleted;
+                          children: _goiYHashtag.map((tag) {
                             return Container(
                               margin: const EdgeInsets.only(right: 8),
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: found ? Colors.green.shade100 : Colors.grey.shade200,
+                                color: Colors.grey.shade200,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                "$tag ${found ? '✓' : ''}",
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: found ? Colors.green.shade900 : Colors.grey.shade700,
-                                ),
+                                tag,
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
                               ),
                             );
                           }).toList(),
@@ -422,27 +377,24 @@ class _BaiPostViewState extends State<BaiPostView> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Nút kiểm tra AI OCR
+                  // Nút gửi bài
                   Obx(() {
-                    if (_isOcrScanning || controller.isLoading.value) {
-                      return Center(
+                    if (controller.isLoading.value) {
+                      return const Center(
                         child: Column(
                           children: [
-                            const CircularProgressIndicator(color: Color(0xFFD4AF37)),
-                            const SizedBox(height: 12),
-                            Text(
-                              _isOcrScanning ? "AI đang quét nội dung bài viết..." : "Đang gửi báo cáo...", 
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F2C59))
-                            ),
+                            CircularProgressIndicator(color: Color(0xFFD4AF37)),
+                            SizedBox(height: 12),
+                            Text("Đang gửi bài...", style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F2C59))),
                           ],
                         ),
                       );
                     } else {
                       return ElevatedButton.icon(
-                        onPressed: _runOcrScan,
-                        icon: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white),
+                        onPressed: _guiBai,
+                        icon: const Icon(Icons.send_rounded, color: Colors.white),
                         label: const Text(
-                          "XÁC THỰC BÀI ĐĂNG",
+                          "GỬI BÀI ĐĂNG",
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
                         ),
                         style: ElevatedButton.styleFrom(
