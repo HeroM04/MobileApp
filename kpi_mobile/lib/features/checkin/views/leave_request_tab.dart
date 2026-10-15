@@ -128,7 +128,8 @@ class _LeaveRequestTabState extends State<LeaveRequestTab> {
           const SizedBox(height: 6),
           const Text(
             'Gửi trước để Admin xét duyệt. Đơn được duyệt tính là vắng có phép (−10đ KPI). '
-            'Không gửi đơn mà cũng không chấm công sẽ bị tính vắng không phép (−15đ).',
+            'Không gửi đơn mà cũng không chấm công sẽ bị tính vắng không phép (−15đ). '
+            'Thứ Bảy vẫn ghi vắng như ngày thường nhưng không trừ điểm.',
             style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
           ),
           const Divider(height: 24),
@@ -202,7 +203,7 @@ class _LeaveRequestTabState extends State<LeaveRequestTab> {
 
   Widget _buildRequestCard(Map<String, dynamic> r) {
     final status = (r['status'] ?? 'PENDING').toString();
-    final meta = _statusMeta(status);
+    final meta = _statusMeta(status, (r['kpiPoints'] as num?)?.toInt());
     final dateStr = _formatYmd(r['leaveDate']?.toString());
     final canCancel = status == 'PENDING';
 
@@ -283,14 +284,21 @@ class _LeaveRequestTabState extends State<LeaveRequestTab> {
     }
   }
 
-  _StatusMeta _statusMeta(String status) {
+  /// Điểm lấy từ máy chủ ([kpiPoints]): thứ Bảy vẫn ghi có / không phép
+  /// nhưng không trừ điểm (0), nên không viết cứng −10 / −15.
+  _StatusMeta _statusMeta(String status, int? kpiPoints) {
+    String diem(int macDinh) {
+      final d = kpiPoints ?? macDinh;
+      return d < 0 ? '−${-d}đ' : 'không trừ điểm';
+    }
+
     switch (status) {
       case 'APPROVED':
-        return const _StatusMeta('Có phép (−10đ)', Colors.green, Icons.verified_rounded);
+        return _StatusMeta('Có phép (${diem(-10)})', Colors.green, Icons.verified_rounded);
       case 'REJECTED':
         return const _StatusMeta('Bị từ chối', Colors.grey, Icons.cancel_outlined);
       case 'UNEXCUSED':
-        return const _StatusMeta('Không phép (−15đ)', Colors.redAccent, Icons.report_gmailerrorred_rounded);
+        return _StatusMeta('Không phép (${diem(-15)})', Colors.redAccent, Icons.report_gmailerrorred_rounded);
       default:
         return const _StatusMeta('Chờ duyệt', Colors.orange, Icons.hourglass_top_rounded);
     }
