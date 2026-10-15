@@ -27,6 +27,14 @@ void main() {
     expect(dung.loiChoNguoiDung, isEmpty);
   });
 
+  test('dấu chấm công: giờ đủ giây + địa chỉ giữ nguyên dấu tiếng Việt', () {
+    final luc = DateTime(2026, 10, 15, 8, 44, 1);
+    expect(noiDungDauChamCong(luc, 'P. Phú Thượng, Thành Phố Hà Nội'),
+        '15/10/2026 08:44:01\nP. Phú Thượng, Thành Phố Hà Nội');
+    // Không lấy được địa chỉ thì chỉ còn dòng giờ, không để dòng trống
+    expect(noiDungDauChamCong(luc, '  '), '15/10/2026 08:44:01');
+  });
+
   test('điểm ảnh RGBA từ Flutter → JPEG đúng kích thước, đúng màu', () {
     const rong = 120, cao = 80;
     final rgba = Uint8List(rong * cao * 4);

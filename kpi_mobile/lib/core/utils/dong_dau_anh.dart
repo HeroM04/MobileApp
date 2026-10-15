@@ -74,6 +74,61 @@ List<int> rgbaSangJpg(ByteBuffer buffer, int rong, int cao) => img.encodeJpg(
       quality: 85,
     );
 
+/// Hai dòng đóng dấu lên ảnh CHẤM CÔNG: giờ chụp và địa chỉ.
+String noiDungDauChamCong(DateTime luc, String diaChi) {
+  String hai(int n) => n.toString().padLeft(2, '0');
+  final gio = '${hai(luc.day)}/${hai(luc.month)}/${luc.year} ${hai(luc.hour)}:${hai(luc.minute)}:${hai(luc.second)}';
+  final dc = diaChi.trim();
+  return dc.isEmpty ? gio : '$gio\n$dc';
+}
+
+/// Đóng dấu giờ + địa chỉ lên ảnh chấm công, góc dưới bên trái.
+///
+/// Vẽ bằng Flutter (font của hệ thống, đủ dấu tiếng Việt). Trước đây dùng font
+/// bitmap có sẵn của thư viện `image` — font đó chỉ có chữ không dấu, nên
+/// "P. Phú Thượng, Thành Phố Hà Nội" in ra thành "P. Ph Th ng, Th nh Ph H N i".
+/// Gọn hơn dấu Timemark của Thực chiến để không che mặt trong ảnh selfie.
+/// Lỗi thì trả lại ảnh gốc, không chặn chấm công.
+Future<File> dongDauChamCong(File goc, {required String diaChi, DateTime? luc}) async {
+  try {
+    final codec = await ui.instantiateImageCodec(await goc.readAsBytes());
+    final anh = (await codec.getNextFrame()).image;
+    final double w = anh.width.toDouble(), h = anh.height.toDouble();
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.drawImage(anh, Offset.zero, Paint());
+
+    final double canhNgan = w < h ? w : h;
+    final double co = canhNgan * 0.040, le = canhNgan * 0.03;
+    final vien = [
+      Shadow(color: Colors.black, blurRadius: co * 0.25),
+      Shadow(color: Colors.black.withValues(alpha: 0.8), offset: Offset(co * 0.05, co * 0.05)),
+    ];
+    final chu = TextPainter(
+      text: TextSpan(
+        text: noiDungDauChamCong(luc ?? DateTime.now(), diaChi),
+        style: TextStyle(color: Colors.white, fontSize: co, height: 1.3, fontWeight: FontWeight.w600, shadows: vien),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 4,
+    )..layout(maxWidth: w - le * 2);
+    chu.paint(canvas, Offset(le, h - chu.height - le));
+
+    final ra = await recorder.endRecording().toImage(anh.width, anh.height);
+    final rgba = await ra.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final jpg = rgbaSangJpg(rgba!.buffer, anh.width, anh.height);
+
+    final dir = await getTemporaryDirectory();
+    final out = File('${dir.path}/cc_${DateTime.now().millisecondsSinceEpoch}.jpg');
+    await out.writeAsBytes(jpg);
+    return out;
+  } catch (e) {
+    debugPrint('[Đóng dấu chấm công] Lỗi: $e');
+    return goc;
+  }
+}
+
 const _thu = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
 
 /// Đóng dấu "Timemark" lên ảnh: logo, giờ | ngày, thứ, địa chỉ, họ tên, phòng —

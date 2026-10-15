@@ -6,7 +6,6 @@ import 'package:geocoding/geocoding.dart';
 import 'package:image_picker/image_picker.dart'; 
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:image/image.dart' as img;
-import 'package:intl/intl.dart';
 import 'dart:math' as math;
 import 'package:kpi_mobile/data/services/checkin_service.dart';
 import 'package:kpi_mobile/data/services/upload_service.dart';
@@ -18,6 +17,7 @@ import 'package:dio/dio.dart';
 import '../../../core/widgets/thong_bao.dart';
 import '../../../core/utils/quyen_anh.dart';
 import '../../../core/utils/thu_nho_anh.dart';
+import '../../../core/utils/dong_dau_anh.dart';
 
 class CheckinController extends GetxController {
   var isLoading = false.obs;
@@ -253,32 +253,20 @@ class CheckinController extends GetxController {
     return "$lat, $lng";
   }
 
-  /// Vẽ Watermark (Sử dụng Image library)
+  /// Đóng dấu giờ + địa chỉ lên ảnh chấm công.
   Future<File> _addWatermark(File originalFile, String address) async {
     try {
       final bytes = await originalFile.readAsBytes();
       img.Image? goc = img.decodeImage(bytes);
       if (goc == null) return originalFile;
-      // Thu nhỏ TRƯỚC khi đóng dấu: chữ đóng dấu cỡ cố định theo pixel, làm sau
-      // thì trên ảnh gốc 4000 px chữ bé tí, thu nhỏ xong còn mờ hơn. Nhận diện
-      // khuôn mặt đã chạy trên ảnh gốc ở bước trước nên không bị ảnh hưởng.
-      final image = thuNhoAnh(goc);
-
-      String timestamp = DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now());
-      String watermarkText = "$timestamp\n$address";
-
-      // Chọn font (dùng font zip mặc định)
-      img.BitmapFont font = img.arial24;
-      
-      // Vẽ viền đen cho chữ để dễ đọc
-      img.drawString(image, watermarkText, font: font, x: 21, y: image.height - 80 + 1, color: img.ColorRgb8(0, 0, 0));
-      img.drawString(image, watermarkText, font: font, x: 19, y: image.height - 80 - 1, color: img.ColorRgb8(0, 0, 0));
-      // Vẽ chữ trắng
-      img.drawString(image, watermarkText, font: font, x: 20, y: image.height - 80, color: img.ColorRgb8(255, 255, 255));
-
-      // Tách phần mở rộng đúng cách. Trước đây thay chuỗi '.jpg' cứng, gặp file
-      // .jpeg hay .png là không đổi được tên nên ghi đè luôn lên ảnh gốc.
-      return _writeJpg(image, originalFile, 'watermarked');
+      // Thu nhỏ TRƯỚC khi đóng dấu: làm sau thì trên ảnh gốc 4000 px chữ bé tí,
+      // thu nhỏ xong còn mờ hơn. Nhận diện khuôn mặt đã chạy trên ảnh gốc ở
+      // bước trước nên không bị ảnh hưởng.
+      // Tách phần mở rộng đúng cách (_writeJpg) — trước đây thay chuỗi '.jpg'
+      // cứng, gặp .jpeg hay .png là ghi đè luôn lên ảnh gốc.
+      final daThuNho = await _writeJpg(thuNhoAnh(goc), originalFile, 'nho');
+      // Vẽ chữ bằng Flutter để đủ dấu tiếng Việt (xem dongDauChamCong)
+      return await dongDauChamCong(daThuNho, diaChi: address);
     } catch (e) {
       print("Lỗi tạo Watermark: $e");
       return originalFile; // Nếu lỗi, dùng ảnh gốc
