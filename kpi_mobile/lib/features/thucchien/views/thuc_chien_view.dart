@@ -654,20 +654,28 @@ class _ThucChienViewState extends State<ThucChienView> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Nút submit — luôn hiển thị vì Optimistic UI không block màn hình
-                  ElevatedButton.icon(
-                    onPressed: _submitMeeting,
-                    icon: const Icon(Icons.check_circle_outline, color: Colors.white),
-                    label: const Text(
-                      "GỬI BÁO CÁO GẶP MẶT",
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0F2C59),
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
+                  // Nút submit — khóa trong lúc lấy vị trí để không gửi lặp
+                  Obx(() {
+                    final dangGui = controller.dangChuanBiGui.value;
+                    return ElevatedButton.icon(
+                      onPressed: dangGui ? null : _submitMeeting,
+                      icon: dangGui
+                          ? const SizedBox(
+                              width: 18, height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.check_circle_outline, color: Colors.white),
+                      label: Text(
+                        dangGui ? "ĐANG GỬI..." : "GỬI BÁO CÁO GẶP MẶT",
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0F2C59),
+                        disabledBackgroundColor: const Color(0xFF0F2C59).withValues(alpha: 0.6),
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    );
+                  }),
                 ],
               ),
             ),

@@ -19,6 +19,8 @@ class ThucChienController extends GetxController {
 
   var isLoading = false.obs;
   var isSyncing = false.obs;
+  /// Đã bấm Gửi, đang lấy vị trí — khóa nút để không gửi lặp.
+  var dangChuanBiGui = false.obs;
   var offlineDrafts = <Map<String, String>>[].obs;
   var hasConnection = true.obs;
   var currentAddress = ''.obs;
@@ -176,8 +178,16 @@ class ThucChienController extends GetxController {
     required VoidCallback onSuccess,   // Callback reset form ngay khi ấn nút
     String battleType = 'MEETING',     // MEETING = gặp khách (+10đ), SUPPORT = hỗ trợ khách (+5đ)
   }) async {
-    // Lấy GPS và địa chỉ TRƯỚC khi submit
-    await getCurrentLocationAndAddress();
+    // Lấy GPS mất vài giây; trước đây nút Gửi vẫn bấm được trong lúc đó nên
+    // người dùng tưởng chưa ăn, bấm thêm 3–4 lần thành 3–4 báo cáo giống hệt.
+    if (dangChuanBiGui.value) return;
+    dangChuanBiGui.value = true;
+    try {
+      // Lấy GPS và địa chỉ TRƯỚC khi submit
+      await getCurrentLocationAndAddress();
+    } finally {
+      dangChuanBiGui.value = false;
+    }
 
     // BƯỚC 1: Phản hồi ngay cho người dùng (< 200ms)
     onSuccess();
@@ -282,6 +292,8 @@ class ThucChienController extends GetxController {
 
   // Tự động đồng bộ toàn bộ bản nháp lên server
   Future<void> autoSyncDrafts() async {
+    // Hai lượt đồng bộ chạy song song sẽ gửi cùng một bản nháp hai lần
+    if (isSyncing.value) return;
     isSyncing.value = true;
     final draftsToSync = List<Map<String, String>>.from(offlineDrafts);
     final daGui = <Map<String, String>>[];
