@@ -52,21 +52,24 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Ứng dụng cần sử dụng Camera để chụp ảnh check-in thực địa, quét mã QR điểm danh và xác thực khuôn mặt</string>
+	<string>Ứng dụng dùng camera để chụp ảnh khi bạn chấm công, chụp ảnh báo cáo gặp khách và quét mã QR điểm danh đào tạo. Ảnh chỉ được gửi cho công ty khi bạn bấm gửi.</string>
 	<!-- image_picker: BẮT BUỘC khi chọn ảnh từ Thư viện (ImageSource.gallery) — thiếu sẽ crash -->
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Ứng dụng cần truy cập Thư viện ảnh để bạn chọn ảnh báo cáo thực chiến, bài đăng, đào tạo và ảnh chụp màn hình đính kèm góp ý</string>
+	<string>Ứng dụng cần truy cập Thư viện ảnh để bạn chọn ảnh có sẵn đính kèm báo cáo gặp khách, bài đăng, đào tạo và góp ý.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Ứng dụng cần quyền lưu ảnh đã chụp vào Thư viện ảnh của bạn</string>
-	<!-- camera plugin: iOS yêu cầu khai báo micro khi khởi tạo camera có ghi âm -->
+	<string>Ứng dụng cần quyền lưu ảnh vào Thư viện ảnh khi bạn chọn lưu ảnh từ ứng dụng.</string>
+	<!-- Thư viện camera tham chiếu tới micro nên iOS bắt khai báo; app chỉ chụp ảnh,
+	     không quay video, không ghi âm nên không bao giờ hỏi quyền này. -->
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Ứng dụng cần micro khi quay video trong quá trình báo cáo thực chiến</string>
+	<string>Ứng dụng không ghi âm hay quay video. Quyền micro chỉ được khai báo kỹ thuật cho thư viện camera và không được sử dụng.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Ứng dụng cần lấy vị trí của bạn để chấm công chính xác</string>
+	<string>Ứng dụng dùng vị trí khi bạn bấm chấm công hoặc gửi báo cáo gặp khách, để xác nhận bạn đang ở văn phòng hoặc tại điểm gặp khách. Ứng dụng không theo dõi vị trí khi chạy nền.</string>
+	<!-- Hai khóa "Always" chỉ để qua kiểm tra tự động của Apple. Geolocator thấy có
+	     khóa WhenInUse ở trên nên luôn xin quyền "Khi dùng ứng dụng", không xin "Luôn luôn". -->
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Ứng dụng cần lấy vị trí của bạn để chấm công chính xác</string>
+	<string>Ứng dụng chỉ dùng vị trí khi bạn bấm chấm công hoặc gửi báo cáo gặp khách. Ứng dụng không theo dõi vị trí khi chạy nền.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Ứng dụng cần lấy vị trí của bạn để chấm công chính xác</string>
+	<string>Ứng dụng chỉ dùng vị trí khi bạn bấm chấm công hoặc gửi báo cáo gặp khách. Ứng dụng không theo dõi vị trí khi chạy nền.</string>
 	<!-- url_launcher: khai báo scheme để kiểm tra và mở app ngoài (YouTube / Facebook) -->
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
