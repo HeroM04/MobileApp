@@ -63,7 +63,7 @@ Tính năng chính:
 
 - Chụp **3–5 ảnh trên iPhone màn hình lớn** (Pro Max hoặc Plus): trang chủ có điểm KPI, chấm công, thực chiến, bài đăng, lịch sử chấm công.
 - **Đăng nhập bằng tài khoản demo** khi chụp. Không để lộ tên, số điện thoại, ảnh của nhân viên thật.
-- Kéo vào ô **iPhone 6.9" Display**. Nếu App Store Connect báo sai kích thước, gửi ảnh cho Claude để chỉnh lại.
+- Kéo vào ô **iPhone with Dynamic Island (medium display)**. Ô này chỉ nhận ảnh **1179 × 2556** hoặc **1206 × 2622**. Ảnh chụp trên iPhone 11/XR (828 × 1792) hoặc ảnh gửi qua Zalo sẽ bị báo "File dimensions are invalid", phải phóng lên đúng cỡ (đã có sẵn 5 ảnh trong `Downloads\anh-app-store`).
 
 ### 3.4 App Review Information
 - **Sign-in required:** bật. Điền số điện thoại và mật khẩu của tài khoản demo ở Bước 2.
@@ -84,7 +84,9 @@ How to review:
 4. Training ("Đào tạo"): QR attendance only works during an in-person session in our office. A 1-on-1 training report can be submitted with a photo.
 5. KPI points and notifications are on the home screen and under the bell icon.
 
-Location is requested "While Using the App" and used only when the user taps check-in or submits a field report; there is no background tracking. The camera and photo library are used only for attendance photos, report photos and QR scanning. There is no face recognition.
+Location is requested "While Using the App" and used only when the user taps check-in or submits a field report; there is no background tracking. The camera and photo library are used only for attendance photos, report photos and QR scanning.
+
+Attendance photos: to prevent buddy punching, the app checks on the device (Google ML Kit) that the photo contains a face, and the server may compare the check-in photo with the employee's profile photo (Amazon Rekognition) to confirm the right person is checking in. No face templates are created or stored; only the photos are kept. This is described in the privacy policy.
 ```
 
 ### 3.5 App Privacy (mục bên trái → App Privacy)

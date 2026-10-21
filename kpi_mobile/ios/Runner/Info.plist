@@ -52,7 +52,7 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Ứng dụng dùng camera để chụp ảnh khi bạn chấm công, chụp ảnh báo cáo gặp khách và quét mã QR điểm danh đào tạo. Ảnh chỉ được gửi cho công ty khi bạn bấm gửi.</string>
+	<string>Ứng dụng dùng camera để chụp ảnh chân dung khi bạn chấm công (để xác nhận đúng người chấm công), chụp ảnh báo cáo gặp khách và quét mã QR điểm danh đào tạo.</string>
 	<!-- image_picker: BẮT BUỘC khi chọn ảnh từ Thư viện (ImageSource.gallery) — thiếu sẽ crash -->
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Ứng dụng cần truy cập Thư viện ảnh để bạn chọn ảnh có sẵn đính kèm báo cáo gặp khách, bài đăng, đào tạo và góp ý.</string>
