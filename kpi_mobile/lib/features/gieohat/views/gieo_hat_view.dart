@@ -157,6 +157,7 @@ class _GieoHatViewState extends State<GieoHatView> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       helperText: 'Số này sẽ là tài khoản đăng nhập của bạn ấy',
+                      helperMaxLines: 2, // chữ to thì xuống dòng, không bị cắt "củ…"
                       helperStyle: const TextStyle(fontSize: 11),
                     ),
                     validator: (v) {

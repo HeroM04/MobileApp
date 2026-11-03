@@ -61,7 +61,7 @@ class HomeView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            _buildModulesGrid(),
+            _buildModulesGrid(context),
             const SizedBox(height: 30),
           ],
         ),
@@ -131,9 +131,9 @@ class HomeView extends StatelessWidget {
   Widget _buildKpiOverviewCard() {
     return Column(
       children: [
-        _buildSingleKpiCard("Điểm tích lũy KPI tuần", kpiController.kpiWeeklyPoints, kpiController.kpiWeeklyTarget),
+        _buildSingleKpiCard("Điểm KPI tuần", kpiController.kpiWeeklyPoints, kpiController.kpiWeeklyTarget),
         const SizedBox(height: 16),
-        _buildSingleKpiCard("Điểm tích lũy KPI tháng", kpiController.kpiPoints, kpiController.kpiTarget),
+        _buildSingleKpiCard("Điểm KPI tháng", kpiController.kpiPoints, kpiController.kpiTarget),
       ],
     );
   }
@@ -146,16 +146,16 @@ class HomeView extends StatelessWidget {
       final percentStr = (percent * 100).toStringAsFixed(0);
 
       return Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE5E9F0)),
           boxShadow: [
             BoxShadow(
               color: const Color(0xFF0F2C59).withOpacity(0.04),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -165,26 +165,34 @@ class HomeView extends StatelessWidget {
               alignment: Alignment.center,
               children: [
                 SizedBox(
-                  width: 90,
-                  height: 90,
+                  width: 76,
+                  height: 76,
                   child: CircularProgressIndicator(
                     value: percent,
-                    strokeWidth: 10,
+                    strokeWidth: 8,
+                    strokeCap: StrokeCap.round,
                     backgroundColor: const Color(0xFFF1F5F9),
                     valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
                   ),
                 ),
-                Text(
-                  "$percentStr%",
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF0F2C59),
+                // FittedBox: chữ to thì số % co lại cho nằm gọn trong vòng tròn
+                SizedBox(
+                  width: 52,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      "$percentStr%",
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F2C59),
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(width: 24),
+            const SizedBox(width: 18),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,23 +200,28 @@ class HomeView extends StatelessWidget {
                   Text(
                     title,
                     style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                       color: Color(0xFF64748B),
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    "${kpi.toStringAsFixed(0)} / ${target.toStringAsFixed(0)} Điểm",
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF0F2C59),
-                    ),
+                  const SizedBox(height: 4),
+                  // Số điểm to, "/ chỉ tiêu điểm" nhỏ — cùng một dòng, không gãy giữa số và chữ "Điểm"
+                  Text.rich(
+                    TextSpan(children: [
+                      TextSpan(
+                        text: kpi.toStringAsFixed(0),
+                        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF0F2C59)),
+                      ),
+                      TextSpan(
+                        text: " / ${target.toStringAsFixed(0)} điểm",
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                      ),
+                    ]),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8F3E6),
                       borderRadius: BorderRadius.circular(6),
@@ -216,9 +229,9 @@ class HomeView extends StatelessWidget {
                     child: Text(
                       percent >= 1.0 ? "Đạt chỉ tiêu tối đa" : (percent >= 0.5 ? "Đang tiến độ tốt" : "Cần cố gắng thêm"),
                       style: const TextStyle(
-                        color: Color(0xFFB8860B),
+                        color: Color(0xFF9A6B00),
                         fontSize: 11,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -304,17 +317,22 @@ class HomeView extends StatelessWidget {
    * cáo, rồi chờ điểm không bao giờ tới. Nên chỉ hiện những phân hệ họ thật sự
    * dùng: chấm công và phản hồi.
    */
-  Widget _buildModulesGrid() {
+  Widget _buildModulesGrid(BuildContext context) {
     final vaiTro = authController.currentUser['role']?.toString() ?? 'SALE';
     final chamKpi = vaiTro == 'SALE' || vaiTro == 'TRUONG_PHONG';
 
-    return GridView.count(
-      crossAxisCount: 2,
+    // Chiều cao ô theo cỡ chữ (không dùng tỉ lệ cố định): chữ to thì ô cao thêm
+    // cho vừa tên + mô tả, thay vì chữ bị cắt ở đáy ô.
+    final heSoChu = MediaQuery.textScalerOf(context).scale(10) / 10;
+    return GridView(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 1.25,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        mainAxisExtent: 84 + 40 * heSoChu,
+      ),
       children: [
         _buildModuleCard(
           title: "Chấm công",
@@ -488,31 +506,35 @@ class HomeView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "KPI ${authController.currentUser['departmentName']?.toString().toUpperCase() ?? 'PHÒNG KINH DOANH'}",
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                      color: Color(0xFF64748B),
+              // Expanded: tên phòng dài / chữ to thì xuống dòng, không đẩy nhãn bên phải ra ngoài
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "KPI ${authController.currentUser['departmentName']?.toString().toUpperCase() ?? 'PHÒNG KINH DOANH'}",
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                        color: Color(0xFF64748B),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "Thành viên quản lý ($totalStaff nhân sự)",
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F2C59),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Thành viên quản lý ($totalStaff nhân sự)",
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F2C59),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
@@ -531,78 +553,19 @@ class HomeView extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          // Thống kê tóm tắt số nhân viên và tiến trình KPI trong phòng
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0F2C59).withOpacity(0.04),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      const Text(
-                        "Tổng nhân sự",
-                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "$totalStaff nhân sự",
-                        style: const TextStyle(fontSize: 15, color: Color(0xFF0F2C59), fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD4AF37).withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      const Text(
-                        "Đạt KPI chỉ tiêu",
-                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "$achievedStaff/$totalStaff",
-                        style: const TextStyle(fontSize: 15, color: Color(0xFFB8860B), fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.06),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      const Text(
-                        "Hiệu suất phòng",
-                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "${avgPerformance.toStringAsFixed(0)}%",
-                        style: const TextStyle(fontSize: 15, color: Colors.green, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+          // Thống kê tóm tắt số nhân viên và tiến trình KPI trong phòng.
+          // IntrinsicHeight: ba ô cao bằng nhau kể cả khi một nhãn xuống 2 dòng.
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _oThongKe("Nhân sự", "$totalStaff", const Color(0xFF0F2C59)),
+                const SizedBox(width: 8),
+                _oThongKe("Đạt chỉ tiêu", "$achievedStaff/$totalStaff", const Color(0xFFB8860B)),
+                const SizedBox(width: 8),
+                _oThongKe("Hiệu suất", "${avgPerformance.toStringAsFixed(0)}%", const Color(0xFF15803D)),
+              ],
+            ),
           ),
           const SizedBox(height: 20),
           ListView.separated(
@@ -642,17 +605,22 @@ class HomeView extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      Column(
+                      Expanded(
+                        child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Text(
-                                name,
-                                style: const TextStyle(
-                                  color: Color(0xFF0F2C59),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
+                              Flexible(
+                                child: Text(
+                                  name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFF0F2C59),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                               if (isLive) ...[
@@ -684,6 +652,7 @@ class HomeView extends StatelessWidget {
                             ),
                           ),
                         ],
+                        ),
                       ),
                     ],
                   ),
@@ -701,6 +670,35 @@ class HomeView extends StatelessWidget {
     });
   }
 
+  /// Ô số liệu nhỏ trong thẻ KPI phòng: nhãn trên, số dưới. Số co lại cho vừa ô
+  /// (FittedBox) thay vì tràn khi người dùng để cỡ chữ to.
+  Widget _oThongKe(String nhan, String giaTri, Color mau) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF6F8FB),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              nhan,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(giaTri, style: TextStyle(fontSize: 16, color: mau, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMemberProgressRow(String label, double points, double target, double percent) {
     Color statusColor = Colors.orange;
     String statusText = "Cần cố gắng";
@@ -715,37 +713,33 @@ class HomeView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // Wrap: chữ to / màn hẹp thì phần điểm + đánh giá xuống dòng thay vì tràn ra ngoài
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 2,
           children: [
             Text(
               label,
               style: const TextStyle(
                 color: Color(0xFF64748B),
                 fontSize: 11,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            Row(
-              children: [
-                Text(
-                  "${points.toStringAsFixed(0)}/${target.toStringAsFixed(0)} điểm",
-                  style: const TextStyle(
-                    color: Color(0xFF0F2C59),
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
+            Text.rich(
+              TextSpan(children: [
+                TextSpan(
+                  text: "${points.toStringAsFixed(0)}/${target.toStringAsFixed(0)} điểm",
+                  style: const TextStyle(color: Color(0xFF0F2C59), fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  statusText,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                  ),
+                TextSpan(
+                  text: "  ·  $statusText",
+                  style: TextStyle(color: statusColor, fontWeight: FontWeight.w600),
                 ),
-              ],
+              ]),
+              style: const TextStyle(fontSize: 11),
             ),
           ],
         ),

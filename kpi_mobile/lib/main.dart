@@ -9,6 +9,7 @@ import 'features/shell/views/shell_view.dart';
 import 'features/thucchien/controllers/thuc_chien_controller.dart';
 import 'data/services/websocket_service.dart';
 import 'core/utils/cap_nhat_app.dart';
+import 'core/theme/giao_dien.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -100,24 +101,20 @@ class _MyAppState extends State<MyApp> {
     return GetMaterialApp(
       title: 'Trí Long KPI',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        primaryColor: const Color(0xFF0F2C59),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0F2C59),
-          primary: const Color(0xFF0F2C59),
-          secondary: const Color(0xFFD4AF37),
-        ),
-      ),
+      theme: kieuChuApp(),
       // Bấm ra chỗ trống bất kỳ là ẩn bàn phím. Đặt ở đây một lần cho cả app,
-      // thay vì phải bọc lại ở từng màn hình có ô nhập.
-      builder: (context, child) => GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: () {
-          final focus = FocusManager.instance.primaryFocus;
-          if (focus != null && focus.hasFocus) focus.unfocus();
-        },
-        child: child,
+      // thay vì phải bọc lại ở từng màn hình có ô nhập. Cùng chỗ đó giới hạn
+      // cỡ chữ theo máy để chữ to không làm vỡ bố cục (xem gioiHanCoChu).
+      builder: (context, child) => gioiHanCoChu(
+        context,
+        GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () {
+            final focus = FocusManager.instance.primaryFocus;
+            if (focus != null && focus.hasFocus) focus.unfocus();
+          },
+          child: child,
+        ),
       ),
       // Lắng nghe thay đổi của isLoggedIn để vẽ giao diện phù hợp. Trong lúc
       // còn đọc phiên đăng nhập lưu trong máy thì hiện màn chờ — hiện màn đăng

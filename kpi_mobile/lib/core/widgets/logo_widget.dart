@@ -12,8 +12,12 @@ class TriLongLogo extends StatelessWidget {
     this.spacing = 16.0,
   });
 
+  // Logo là hình nhận diện, không phải chữ để đọc: giữ đúng kích thước dù người
+  // dùng để cỡ chữ to — trước đây chữ "TRÍ LONG LAND" phình ra tràn khỏi màn hình.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => MediaQuery.withNoTextScaling(child: _ve());
+
+  Widget _ve() {
     if (isHorizontal) {
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -100,7 +104,10 @@ class TriLongLogo extends StatelessWidget {
             painter: DoubleLPainter(),
           ),
           SizedBox(height: spacing),
-          Row(
+          // Máy hẹp (320 dp) thì dòng chữ logo co lại cho vừa thay vì tràn
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -146,6 +153,7 @@ class TriLongLogo extends StatelessWidget {
                 ),
               ),
             ],
+          ),
           ),
           SizedBox(height: height * 0.04),
           Text(

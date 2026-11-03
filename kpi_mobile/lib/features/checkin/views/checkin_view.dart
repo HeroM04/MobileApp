@@ -191,46 +191,55 @@ class CheckinView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 16),
+                  // Nhãn vai trò nằm dưới tên (không chen bên phải): chữ to thì tên
+                  // vẫn đủ chỗ, không bị bẻ mỗi chữ một dòng
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Color(0xFF0F2C59),
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         Text(
                           dept,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Color(0xFF64748B),
                             fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD4AF37).withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            const {
+                              'TRUONG_PHONG': 'Trưởng phòng',
+                              'SALE': 'Chuyên viên kinh doanh',
+                              'VAN_PHONG': 'Văn phòng',
+                              'ADMIN': 'Quản trị',
+                            }[role.toString().toUpperCase()] ?? role.toString(),
+                            style: const TextStyle(
+                              color: Color(0xFF9A6B00),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD4AF37).withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: const Color(0xFFD4AF37).withOpacity(0.4),
-                      ),
-                    ),
-                    child: Text(
-                      role,
-                      style: const TextStyle(
-                        color: Color(0xFFB8860B),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                      ),
                     ),
                   ),
                 ],

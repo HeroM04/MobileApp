@@ -353,15 +353,18 @@ class _DaoTaoViewState extends State<DaoTaoView> {
                     children: [
                       const Icon(Icons.school, color: Color(0xFFD4AF37), size: 24),
                       const SizedBox(width: 8),
-                      const Text(
-                        "Trung tâm Đào tạo Trí Long",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      // Expanded thay Spacer: tiêu đề dài / chữ to thì xuống dòng, nút "Tạo phòng" vẫn trong khung
+                      const Expanded(
+                        child: Text(
+                          "Trung tâm Đào tạo Trí Long",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 8),
                       if (isAdminOrManager)
                         ElevatedButton.icon(
                           onPressed: _showCreateRoomDialog,
