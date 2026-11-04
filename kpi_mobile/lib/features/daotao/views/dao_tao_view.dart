@@ -272,8 +272,178 @@ class _DaoTaoViewState extends State<DaoTaoView> {
     );
   }
 
+  // Lịch sử có hai loại: buổi đào tạo chung đã điểm danh QR, và báo cáo đào
+  // tạo 1-1 tự nộp. Trước đây chỉ có loại đầu — nộp 1-1 xong là mất dấu, không
+  // biết báo cáo đang chờ duyệt, đã duyệt hay bị từ chối.
+  bool _xem1Kem1 = false;
+
   Widget _buildHistoryTab() {
+    return Column(
+      children: [
+        _chonLoaiLichSu(),
+        Expanded(child: _xem1Kem1 ? _lichSu1Kem1() : _lichSuBuoiHoc()),
+      ],
+    );
+  }
+
+  Widget _chonLoaiLichSu() {
+    Widget nut(String chu, IconData icon, bool la1Kem1) {
+      final chon = _xem1Kem1 == la1Kem1;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setState(() => _xem1Kem1 = la1Kem1),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            margin: const EdgeInsets.all(3),
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            decoration: BoxDecoration(
+              color: chon ? Colors.white : Colors.transparent,
+              borderRadius: BorderRadius.circular(9),
+              border: chon ? Border.all(color: const Color(0xFFE2E8F0)) : null,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 16, color: chon ? const Color(0xFF0F2C59) : Colors.grey),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(chu,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: chon ? FontWeight.bold : FontWeight.w600,
+                        color: chon ? const Color(0xFF0F2C59) : Colors.grey,
+                      )),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(children: [
+        nut('Buổi học', Icons.school_rounded, false),
+        nut('Đào tạo 1-1', Icons.people_alt_rounded, true),
+      ]),
+    );
+  }
+
+  Widget _lichSu1Kem1() {
     return HistoryDateListView(
+      key: const ValueKey('lich-su-1-kem-1'),
+      onFetchHistory: (date) => controller.fetchLichSu1Kem1(date),
+      onFetchMonth: (month) => taiLichSuThang('/training/1-on-1/my', month),
+      thoiDiemCua: (item) => item['submittedAt']?.toString(),
+      emptyMessageThang: 'Không có báo cáo đào tạo 1-1 nào trong tháng này.',
+      loaiDongBo: DongBo.daoTao,
+      emptyMessage: 'Không có báo cáo đào tạo 1-1 nào trong ngày này.',
+      itemBuilder: (item, index) {
+        final status = item['status']?.toString() ?? 'PENDING';
+        final anh = item['photoUrl']?.toString() ?? '';
+        return Card(
+          elevation: 2,
+          margin: const EdgeInsets.only(bottom: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ListTile(
+            onTap: () => _xemBaoCao1Kem1(item),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            leading: anh.isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(anh, width: 44, height: 44, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.people_alt_rounded, color: Color(0xFF0F2C59))),
+                  )
+                : CircleAvatar(
+                    backgroundColor: const Color(0xFF0F2C59).withOpacity(0.08),
+                    child: const Icon(Icons.people_alt_rounded, color: Color(0xFF0F2C59), size: 22),
+                  ),
+            title: Text(item['content']?.toString() ?? '',
+                maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              // Danh sách đã gom theo ngày (ô chọn ngày / tiêu đề ngày) nên chỉ cần giờ
+              child: Text('Nộp lúc ${_gioNop(item['submittedAt'])}',
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF0F2C59), fontWeight: FontWeight.w600)),
+            ),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: statusColor(status).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(statusLabel(status),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor(status))),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _gioNop(Object? iso) {
+    final dt = DateTime.tryParse(iso?.toString() ?? '')?.toLocal();
+    if (dt == null) return '';
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  /// Xem đủ nội dung, ảnh và trạng thái của một báo cáo 1-1 đã nộp.
+  void _xemBaoCao1Kem1(Map<String, dynamic> item) {
+    final status = item['status']?.toString().toUpperCase() ?? 'PENDING';
+    final anh = item['photoUrl']?.toString() ?? '';
+    final yNghia = switch (status) {
+      'APPROVED' => 'Admin đã duyệt — điểm Thực chiến đã được cộng (xem khoản điểm ở mục Thông báo).',
+      'REJECTED' => 'Admin không duyệt báo cáo này nên không được cộng điểm.',
+      _ => 'Đang chờ Admin duyệt. Duyệt xong mới được cộng điểm Thực chiến.',
+    };
+    Get.dialog(AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Báo cáo đào tạo 1-1',
+          style: TextStyle(color: Color(0xFF0F2C59), fontWeight: FontWeight.bold, fontSize: 17)),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Nộp lúc: ${formatIsoDate(item['submittedAt']?.toString())}',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: statusColor(status).withOpacity(0.10),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(yNghia, style: TextStyle(fontSize: 12.5, height: 1.4, color: statusColor(status))),
+            ),
+            const SizedBox(height: 12),
+            Text(item['content']?.toString() ?? '', style: const TextStyle(fontSize: 14, height: 1.45)),
+            if (anh.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.network(anh, fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const Text('Không tải được ảnh.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey))),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [TextButton(onPressed: () => Get.back(), child: const Text('Đóng'))],
+    ));
+  }
+
+  Widget _lichSuBuoiHoc() {
+    return HistoryDateListView(
+      key: const ValueKey('lich-su-buoi-hoc'),
       onFetchHistory: (date) => controller.fetchHistory(date),
       onFetchMonth: (month) => taiLichSuThang('/training-sessions/my-trainings', month),
       thoiDiemCua: (item) => item['attendedAt']?.toString(),

@@ -110,6 +110,16 @@ class _TrainingGia extends TrainingController {
   @override
   // ignore: must_call_super
   void onInit() {}
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchHistory(String date) async => [];
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchLichSu1Kem1(String date) async => [
+        {'id': 3, 'content': 'Kèm em Minh cách tư vấn dự án Metropoli5: chính sách bán hàng, tiến độ thanh toán, cách xử lý khách so sánh giá với dự án bên cạnh', 'status': 'PENDING', 'submittedAt': '2026-11-04T15:20:00+07:00'},
+        {'id': 2, 'content': 'Hướng dẫn gọi điện chăm sóc khách cũ', 'status': 'APPROVED', 'submittedAt': '2026-11-04T10:05:00+07:00'},
+        {'id': 1, 'content': 'Đào tạo nhanh quy trình ký gửi', 'status': 'REJECTED', 'submittedAt': '2026-11-04T08:50:00+07:00'},
+      ];
 }
 
 class _PhanHoiGia extends PhanHoiController {
@@ -227,5 +237,49 @@ void main() {
         await expectLater(find.byType(GetMaterialApp), matchesGoldenFile('anh/${ten}_x$heSo.png'));
       });
     }
+  }
+
+  // Tab Lịch sử của Đào tạo → chuyển sang "Đào tạo 1-1": phải bấm qua hai lớp nên dựng riêng
+  for (final heSo in heSoCanXem) {
+    testWidgets('lich_su_1_kem_1 — chữ x$heSo', (tester) async {
+      final tran = <String>[];
+      final cu = FlutterError.onError;
+      FlutterError.onError = (d) {
+        final s = d.exceptionAsString();
+        tran.add(s.contains('overflowed') ? s.split('\n').first : 'LỖI KHÁC: ${s.split('\n').first}');
+      };
+      tester.view.physicalSize = const Size(360 * 2, 1500 * 2);
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
+      _dangKyGia();
+
+      await tester.pumpWidget(GetMaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: kieuChuApp(),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(heSo)),
+          child: gioiHanCoChu(context, child!),
+        ),
+        home: const Scaffold(body: DaoTaoView()),
+      ));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(find.text('LỊCH SỬ'));
+      await tester.pumpAndSettle(const Duration(milliseconds: 100));
+      await tester.tap(find.text('Đào tạo 1-1'));
+      await tester.pumpAndSettle(const Duration(milliseconds: 100));
+
+      FlutterError.onError = cu;
+      // ignore: avoid_print
+      print('lich_su_1_kem_1 x$heSo: ${tran.where((t) => !t.startsWith('LỖI')).length} chỗ tràn'
+          '${tran.isEmpty ? '' : '\n  - ${tran.toSet().join('\n  - ')}'}');
+      expect(find.text('Hướng dẫn gọi điện chăm sóc khách cũ'), findsOneWidget);
+      await expectLater(find.byType(GetMaterialApp), matchesGoldenFile('anh/lich_su_1_kem_1_x$heSo.png'));
+
+      // Bấm một báo cáo → hộp xem đủ nội dung và giải thích trạng thái
+      await tester.tap(find.text('Hướng dẫn gọi điện chăm sóc khách cũ'));
+      await tester.pumpAndSettle(const Duration(milliseconds: 100));
+      expect(find.textContaining('Admin đã duyệt'), findsOneWidget);
+      await expectLater(find.byType(GetMaterialApp), matchesGoldenFile('anh/lich_su_1_kem_1_chi_tiet_x$heSo.png'));
+    });
   }
 }

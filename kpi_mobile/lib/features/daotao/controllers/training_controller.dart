@@ -164,6 +164,19 @@ class TrainingController extends GetxController {
     return [];
   }
 
+  /// Báo cáo đào tạo 1-1 mình đã nộp trong một ngày (yyyy-MM-dd), mới nộp đứng trên.
+  Future<List<Map<String, dynamic>>> fetchLichSu1Kem1(String date) async {
+    try {
+      final response = await ApiClient.dio.get('/training/1-on-1/my', queryParameters: {'date': date});
+      if (response.data != null && response.data['data'] != null) {
+        return List<Map<String, dynamic>>.from(response.data['data']);
+      }
+    } catch (e) {
+      print('Lỗi tải lịch sử đào tạo 1-1: $e');
+    }
+    return [];
+  }
+
   Future<void> fetchRooms() async {
     try {
       isLoading.value = true;
