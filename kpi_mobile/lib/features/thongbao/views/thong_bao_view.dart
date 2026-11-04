@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 
+import '../../../core/utils/moc_khoan_diem.dart';
 import '../controllers/thong_bao_controller.dart';
 
 /// Màn hình Thông báo — lịch sử từng khoản điểm KPI được cộng và bị trừ.
@@ -288,7 +288,7 @@ class ThongBaoView extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${k['categoryLabel'] ?? ''} · ${_gioNgay(k['occurredAt']?.toString())}',
+                  '${k['categoryLabel'] ?? ''} · ${mocKhoanDiem(k)}',
                   style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
                 ),
                 if (chamTran) ...[
@@ -358,15 +358,6 @@ class ThongBaoView extends StatelessWidget {
         return Icons.domain_verification_rounded;
       default:
         return Icons.circle_outlined;
-    }
-  }
-
-  String _gioNgay(String? iso) {
-    if (iso == null || iso.isEmpty) return '';
-    try {
-      return DateFormat('HH:mm · dd/MM').format(DateTime.parse(iso).toLocal());
-    } catch (_) {
-      return '';
     }
   }
 
