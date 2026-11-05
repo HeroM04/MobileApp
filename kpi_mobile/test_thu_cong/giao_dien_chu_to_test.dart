@@ -150,6 +150,24 @@ class _ThucChienGia extends ThucChienController {
   @override
   // ignore: must_call_super
   void onClose() {}
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchHistory(String date) async => [
+        {'id': 2, 'battleType': 'MEETING', 'customerName': 'Anh Tuấn', 'customerPhone': '0912345678', 'project': 'Metropoli5',
+         'content': 'Dẫn khách xem căn 2PN tầng 18, khách quan tâm chính sách vay 0% lãi suất 18 tháng', 'location': 'Tố Hữu, Hà Đông',
+         'status': 'APPROVED', 'submittedAt': '2026-11-04T10:15:00+07:00'},
+        {'id': 1, 'battleType': 'SUPPORT', 'customerName': '', 'project': '', 'content': 'Hỗ trợ khách ký hợp đồng',
+         'status': 'PENDING', 'submittedAt': '2026-11-04T08:50:00+07:00'},
+      ];
+}
+
+class _BaiPostGia extends BaiPostController {
+  @override
+  Future<List<Map<String, dynamic>>> fetchHistory(String date) async => [
+        {'id': 1, 'contentType': 'POST', 'platform': 'FACEBOOK', 'link': 'https://facebook.com/trilongland/posts/123',
+         'caption': 'Mở bán đợt 2 dự án Metropoli5 — chiết khấu 5% cho khách đặt cọc trong tuần', 'status': 'PENDING',
+         'submittedAt': '2026-11-04T09:30:00+07:00'},
+      ];
 }
 
 Future<void> _napPhong() async {
@@ -194,7 +212,7 @@ void _dangKyGia() {
   Get.put<PhanHoiController>(_PhanHoiGia());
   Get.put<ThongBaoController>(_ThongBaoGia());
   Get.put<ThucChienController>(_ThucChienGia());
-  Get.put<BaiPostController>(BaiPostController());
+  Get.put<BaiPostController>(_BaiPostGia());
   Get.put<ChotCanController>(ChotCanController());
   Get.put<CheckinController>(CheckinController());
 }
@@ -281,5 +299,47 @@ void main() {
       expect(find.textContaining('Admin đã duyệt'), findsOneWidget);
       await expectLater(find.byType(GetMaterialApp), matchesGoldenFile('anh/lich_su_1_kem_1_chi_tiet_x$heSo.png'));
     });
+  }
+
+  // Lịch sử Thực chiến / Bài đăng: ảnh, nội dung, bấm vào xem chi tiết như Đào tạo 1-1
+  final lichSuGui = <(String, Widget Function(), String)>[
+    ('lich_su_thuc_chien', () => const Scaffold(body: ThucChienView()), 'Gặp khách · Anh Tuấn'),
+    ('lich_su_bai_dang', () => const Scaffold(body: BaiPostView()), 'Bài đăng · Facebook'),
+  ];
+  for (final (ten, manHinh, mo) in lichSuGui) {
+    for (final heSo in heSoCanXem) {
+      testWidgets('$ten — chữ x$heSo', (tester) async {
+        final tran = <String>[];
+        final cu = FlutterError.onError;
+        FlutterError.onError = (d) {
+          final s = d.exceptionAsString();
+          if (s.contains('overflowed')) tran.add(s.split('\n').first);
+        };
+        tester.view.physicalSize = const Size(360 * 2, 1500 * 2);
+        tester.view.devicePixelRatio = 2;
+        addTearDown(tester.view.reset);
+        _dangKyGia();
+        await tester.pumpWidget(GetMaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: kieuChuApp(),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(heSo)),
+            child: gioiHanCoChu(context, child!),
+          ),
+          home: manHinh(),
+        ));
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.tap(find.text('LỊCH SỬ GỬI'));
+        await tester.pumpAndSettle(const Duration(milliseconds: 100));
+        expect(find.text(mo), findsOneWidget);
+        await expectLater(find.byType(GetMaterialApp), matchesGoldenFile('anh/${ten}_x$heSo.png'));
+        await tester.tap(find.text(mo));
+        await tester.pumpAndSettle(const Duration(milliseconds: 100));
+        FlutterError.onError = cu;
+        // ignore: avoid_print
+        print('$ten x$heSo: ${tran.length} chỗ tràn${tran.isEmpty ? '' : '\n  - ${tran.toSet().join('\n  - ')}'}');
+        await expectLater(find.byType(GetMaterialApp), matchesGoldenFile('anh/${ten}_chi_tiet_x$heSo.png'));
+      });
+    }
   }
 }

@@ -7,6 +7,7 @@ import 'qr_token_display.dart';
 import 'dao_tao_1_on_1_view.dart';
 import 'training_archive_view.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
+import '../../../shared/widgets/the_lich_su.dart';
 import '../../../data/services/lich_su_thang.dart';
 import '../../../core/utils/dong_bo.dart';
 
@@ -345,100 +346,24 @@ class _DaoTaoViewState extends State<DaoTaoView> {
       loaiDongBo: DongBo.daoTao,
       emptyMessage: 'Không có báo cáo đào tạo 1-1 nào trong ngày này.',
       itemBuilder: (item, index) {
-        final status = item['status']?.toString() ?? 'PENDING';
-        final anh = item['photoUrl']?.toString() ?? '';
-        return Card(
-          elevation: 2,
-          margin: const EdgeInsets.only(bottom: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            onTap: () => _xemBaoCao1Kem1(item),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: anh.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(anh, width: 44, height: 44, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.people_alt_rounded, color: Color(0xFF0F2C59))),
-                  )
-                : CircleAvatar(
-                    backgroundColor: const Color(0xFF0F2C59).withOpacity(0.08),
-                    child: const Icon(Icons.people_alt_rounded, color: Color(0xFF0F2C59), size: 22),
-                  ),
-            title: Text(item['content']?.toString() ?? '',
-                maxLines: 2, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 4),
-              // Danh sách đã gom theo ngày (ô chọn ngày / tiêu đề ngày) nên chỉ cần giờ
-              child: Text('Nộp lúc ${_gioNop(item['submittedAt'])}',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF0F2C59), fontWeight: FontWeight.w600)),
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: statusColor(status).withOpacity(0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(statusLabel(status),
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor(status))),
-            ),
+        final status = (item['status'] ?? 'PENDING').toString();
+        return TheLichSu(
+          anh: item['photoUrl']?.toString(),
+          bieuTuong: Icons.people_alt_rounded,
+          tieuDe: (item['content'] ?? '').toString(),
+          submittedAt: item['submittedAt'],
+          trangThai: status,
+          onTap: () => xemChiTietLichSu(
+            tieuDe: 'Báo cáo đào tạo 1-1',
+            submittedAt: item['submittedAt'],
+            trangThai: status,
+            nhomDiem: 'Thực chiến',
+            noiDung: item['content']?.toString(),
+            anh: item['photoUrl']?.toString(),
           ),
         );
       },
     );
-  }
-
-  String _gioNop(Object? iso) {
-    final dt = DateTime.tryParse(iso?.toString() ?? '')?.toLocal();
-    if (dt == null) return '';
-    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
-
-  /// Xem đủ nội dung, ảnh và trạng thái của một báo cáo 1-1 đã nộp.
-  void _xemBaoCao1Kem1(Map<String, dynamic> item) {
-    final status = item['status']?.toString().toUpperCase() ?? 'PENDING';
-    final anh = item['photoUrl']?.toString() ?? '';
-    final yNghia = switch (status) {
-      'APPROVED' => 'Admin đã duyệt — điểm Thực chiến đã được cộng (xem khoản điểm ở mục Thông báo).',
-      'REJECTED' => 'Admin không duyệt báo cáo này nên không được cộng điểm.',
-      _ => 'Đang chờ Admin duyệt. Duyệt xong mới được cộng điểm Thực chiến.',
-    };
-    Get.dialog(AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Báo cáo đào tạo 1-1',
-          style: TextStyle(color: Color(0xFF0F2C59), fontWeight: FontWeight.bold, fontSize: 17)),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Nộp lúc: ${formatIsoDate(item['submittedAt']?.toString())}',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: statusColor(status).withOpacity(0.10),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(yNghia, style: TextStyle(fontSize: 12.5, height: 1.4, color: statusColor(status))),
-            ),
-            const SizedBox(height: 12),
-            Text(item['content']?.toString() ?? '', style: const TextStyle(fontSize: 14, height: 1.45)),
-            if (anh.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(anh, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const Text('Không tải được ảnh.',
-                        style: TextStyle(fontSize: 12, color: Colors.grey))),
-              ),
-            ],
-          ],
-        ),
-      ),
-      actions: [TextButton(onPressed: () => Get.back(), child: const Text('Đóng'))],
-    ));
   }
 
   Widget _lichSuBuoiHoc() {

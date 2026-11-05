@@ -8,6 +8,7 @@ import '../../home/controllers/kpi_controller.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../controllers/thuc_chien_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
+import '../../../shared/widgets/the_lich_su.dart';
 import '../../../data/services/lich_su_thang.dart';
 import '../../../core/widgets/thong_bao.dart';
 import '../../../core/utils/quyen_anh.dart';
@@ -431,43 +432,31 @@ class _ThucChienViewState extends State<ThucChienView> {
       loaiDongBo: DongBo.thucChien,
       emptyMessage: 'Không có báo cáo thực chiến nào trong ngày này.',
       itemBuilder: (item, index) {
-        final submittedAt = item['submittedAt'];
-        final dateStr = formatIsoDate(submittedAt?.toString());
-        final customer = item['customerName'] ?? 'Khách hàng';
-        final project = item['project'] ?? 'Chưa rõ';
-        final status = item['status'] ?? 'PENDING';
-
-        return Card(
-          elevation: 2,
-          margin: const EdgeInsets.only(bottom: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: CircleAvatar(
-              backgroundColor: const Color(0xFF0F2C59).withOpacity(0.08),
-              child: const Icon(Icons.groups_rounded, color: Color(0xFF0F2C59), size: 22),
-            ),
-            title: Text('Thực chiến $dateStr', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 2),
-                Text('Nội dung: ${item['content'] ?? ''}', style: const TextStyle(fontSize: 12, color: Colors.grey), maxLines: 2, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 4),
-                Text('Ngày: $dateStr', style: const TextStyle(fontSize: 12, color: Color(0xFF0F2C59), fontWeight: FontWeight.w600)),
-              ],
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: statusColor(status).withOpacity(0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                statusLabel(status),
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor(status)),
-              ),
-            ),
+        final loai = item['battleType'] == 'SUPPORT' ? 'Hỗ trợ khách' : 'Gặp khách';
+        final khach = (item['customerName'] ?? '').toString().trim();
+        final status = (item['status'] ?? 'PENDING').toString();
+        return TheLichSu(
+          anh: item['photoUrl']?.toString(),
+          bieuTuong: Icons.groups_rounded,
+          tieuDe: khach.isEmpty ? loai : '$loai · $khach',
+          phu: (item['project'] ?? '').toString(),
+          noiDung: item['content']?.toString(),
+          submittedAt: item['submittedAt'],
+          trangThai: status,
+          onTap: () => xemChiTietLichSu(
+            tieuDe: 'Báo cáo thực chiến',
+            submittedAt: item['submittedAt'],
+            trangThai: status,
+            nhomDiem: 'Thực chiến',
+            thongTin: [
+              MapEntry('Loại', loai),
+              MapEntry('Khách hàng', khach),
+              MapEntry('SĐT khách', (item['customerPhone'] ?? '').toString()),
+              MapEntry('Dự án', (item['project'] ?? '').toString()),
+              MapEntry('Địa điểm', (item['location'] ?? '').toString()),
+            ],
+            noiDung: item['content']?.toString(),
+            anh: item['photoUrl']?.toString(),
           ),
         );
       },

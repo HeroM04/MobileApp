@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../controllers/bai_post_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
+import '../../../shared/widgets/the_lich_su.dart';
 import '../../../data/services/lich_su_thang.dart';
 import '../../../core/widgets/thong_bao.dart';
 import '../../../core/utils/quyen_anh.dart';
@@ -144,48 +145,27 @@ class _BaiPostViewState extends State<BaiPostView> {
       loaiDongBo: DongBo.baiDang,
       emptyMessage: 'Không có bài post nào trong ngày này.',
       itemBuilder: (item, index) {
-        final submittedAt = item['submittedAt'];
-        final dateStr = formatIsoDate(submittedAt?.toString());
-        final platform = item['platform'] ?? 'Khác';
-        final link = item['link'] ?? '';
-        final status = item['status'] ?? 'PENDING';
         final isVideo = item['contentType'] == 'VIDEO';
-
-        return Card(
-          elevation: 2,
-          margin: const EdgeInsets.only(bottom: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: CircleAvatar(
-              backgroundColor: const Color(0xFF0F2C59).withOpacity(0.08),
-              child: Icon(isVideo ? Icons.videocam_rounded : Icons.article_rounded,
-                  color: const Color(0xFF0F2C59), size: 22),
-            ),
-            title: Text(
-              '${isVideo ? "Video xây kênh" : "Bài đăng"} · $platform',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 2),
-                Text('Ngày: $dateStr', style: const TextStyle(fontSize: 12, color: Color(0xFF0F2C59), fontWeight: FontWeight.w600)),
-                if (link.isNotEmpty)
-                  Text(link, style: const TextStyle(fontSize: 11, color: Colors.blue), overflow: TextOverflow.ellipsis),
-              ],
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: statusColor(status).withOpacity(0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                statusLabel(status),
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor(status)),
-              ),
-            ),
+        final loai = isVideo ? 'Video xây kênh' : 'Bài đăng';
+        final nenTang = item['platform'] == 'FACEBOOK' ? 'Facebook' : 'Khác';
+        final status = (item['status'] ?? 'PENDING').toString();
+        return TheLichSu(
+          anh: item['screenshotUrl']?.toString(),
+          bieuTuong: isVideo ? Icons.videocam_rounded : Icons.article_rounded,
+          tieuDe: '$loai · $nenTang',
+          phu: (item['link'] ?? '').toString(),
+          noiDung: item['caption']?.toString(),
+          submittedAt: item['submittedAt'],
+          trangThai: status,
+          onTap: () => xemChiTietLichSu(
+            tieuDe: loai,
+            submittedAt: item['submittedAt'],
+            trangThai: status,
+            nhomDiem: 'Lan tỏa',
+            thongTin: [MapEntry('Nền tảng', nenTang)],
+            noiDung: item['caption']?.toString(),
+            link: item['link']?.toString(),
+            anh: item['screenshotUrl']?.toString(),
           ),
         );
       },
