@@ -20,6 +20,104 @@ class _LoginViewState extends State<LoginView> {
   
   bool _obscurePassword = true;
 
+  /// Ô "Ghi nhớ đăng nhập". Mặc định tích — đúng cách app vẫn chạy trước nay
+  /// (đăng nhập một lần, mở app là vào thẳng).
+  bool _ghiNho = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Điền sẵn số điện thoại + mật khẩu đã ghi nhớ (sau khi đăng xuất / hết phiên)
+    authController.docGhiNho().then((g) {
+      if (!mounted) return;
+      setState(() {
+        _ghiNho = g.ghiNho;
+        if (_phoneController.text.isEmpty && g.sdt != null) _phoneController.text = g.sdt!;
+        if (_passwordController.text.isEmpty && g.matKhau != null) _passwordController.text = g.matKhau!;
+      });
+    });
+  }
+
+  /// Quên mật khẩu: hỏi số điện thoại, đặt lại về 123456 nếu máy này từng
+  /// đăng nhập tài khoản đó; không thì chỉ cách nhờ Admin.
+  Future<void> _quenMatKhau() async {
+    FocusScope.of(context).unfocus();
+    final sdtCtrl = TextEditingController(text: _phoneController.text.trim());
+    final sdt = await Get.dialog<String>(
+      AlertDialog(
+        title: const Text("Quên mật khẩu",
+            style: TextStyle(color: Color(0xFF0F2C59), fontWeight: FontWeight.w800)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Mật khẩu sẽ được đặt lại về 123456. Mọi máy đang đăng nhập tài khoản này "
+                "sẽ bị đăng xuất.",
+                style: TextStyle(fontSize: 14, color: Color(0xFF334155)),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "Chỉ làm được trên điện thoại bạn đã từng đăng nhập tài khoản này. "
+                "Máy khác thì nhờ Admin đặt lại.",
+                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: sdtCtrl,
+                keyboardType: TextInputType.phone,
+                autofocus: sdtCtrl.text.isEmpty,
+                decoration: InputDecoration(
+                  labelText: "Số điện thoại",
+                  prefixIcon: const Icon(Icons.phone_iphone_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text("Hủy")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F2C59)),
+            onPressed: () {
+              final v = sdtCtrl.text.trim();
+              if (v.isNotEmpty) Get.back(result: v);
+            },
+            child: const Text("Đặt lại về 123456",
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (sdt == null || !mounted) return;
+
+    if (!await authController.coKhoaKhoiPhuc(sdt)) {
+      await Get.dialog(AlertDialog(
+        title: const Text("Không tự đặt lại được",
+            style: TextStyle(color: Color(0xFF0F2C59), fontWeight: FontWeight.w800)),
+        content: Text(
+          "Điện thoại này chưa từng đăng nhập tài khoản $sdt (trên bản app có nút Quên mật khẩu), "
+          "nên không tự đặt lại được — để người khác không reset được tài khoản của bạn.\n\n"
+          "Nhờ Admin đặt lại mật khẩu trên web (Nhân sự → Đặt lại mật khẩu).",
+        ),
+        actions: [TextButton(onPressed: () => Get.back(), child: const Text("Đã hiểu"))],
+      ));
+      return;
+    }
+
+    if (await authController.quenMatKhau(sdt) && mounted) {
+      setState(() {
+        _phoneController.text = sdt;
+        _passwordController.text = AuthController.matKhauMacDinh;
+      });
+      snack("Đã đặt lại mật khẩu",
+          "Mật khẩu giờ là 123456 (đã điền sẵn). Bấm Đăng nhập rồi đặt mật khẩu mới.",
+          duration: const Duration(seconds: 6));
+    }
+  }
+
   @override
   void dispose() {
     _phoneController.dispose();
@@ -217,7 +315,50 @@ class _LoginViewState extends State<LoginView> {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 12),
+
+                          // Ghi nhớ đăng nhập. "Quên mật khẩu?" để riêng dưới nút
+                          // Đăng nhập: chung một hàng thì máy 360 dp đã không vừa.
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: InkWell(
+                              onTap: () => setState(() => _ghiNho = !_ghiNho),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: Checkbox(
+                                        value: _ghiNho,
+                                        onChanged: (v) => setState(() => _ghiNho = v ?? true),
+                                        activeColor: const Color(0xFF0F2C59),
+                                        side: const BorderSide(color: Color(0xFF94A3B8), width: 1.5),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Flexible(
+                                      child: Text(
+                                        "Ghi nhớ đăng nhập",
+                                        style: TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF1B3B6F),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
 
                           // Nút đăng nhập Gold Gradient với hiệu ứng Loading
                           Obx(() => Container(
@@ -248,6 +389,7 @@ class _LoginViewState extends State<LoginView> {
                                         authController.login(
                                           _phoneController.text.trim(),
                                           _passwordController.text,
+                                          ghiNho: _ghiNho,
                                         );
                                       }
                                     },
@@ -278,6 +420,23 @@ class _LoginViewState extends State<LoginView> {
                                     ),
                             ),
                           )),
+                          const SizedBox(height: 8),
+                          Center(
+                            child: TextButton(
+                              onPressed: _quenMatKhau,
+                              child: const Text(
+                                "Quên mật khẩu?",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1B3B6F),
+                                  decoration: TextDecoration.underline,
+                                  decorationColor: Color(0xFF1B3B6F),
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),

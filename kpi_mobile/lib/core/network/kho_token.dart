@@ -13,6 +13,20 @@ class KhoToken {
   static const accessToken = 'accessToken';
   static const refreshToken = 'refreshToken';
 
+  // ── Ghi nhớ đăng nhập (ô tích ở màn đăng nhập) ─────────────────────────────
+  // '1' = giữ đăng nhập + điền sẵn SĐT, mật khẩu khi phải đăng nhập lại;
+  // '0' = thoát app (hay để app chạy nền quá lâu) là phải đăng nhập lại.
+  // Chưa có (máy cài bản cũ) thì coi như '1' — đúng cách app vẫn chạy trước nay.
+  // Đăng xuất KHÔNG xóa các khóa này: mục đích là lần sau khỏi gõ lại.
+  static const ghiNhoDangNhap = 'ghiNhoDangNhap';
+  static const ghiNhoSdt = 'ghiNhoSdt';
+  static const ghiNhoMatKhau = 'ghiNhoMatKhau';
+
+  /// Khóa khôi phục mật khẩu máy chủ cấp cho điện thoại này, theo từng tài
+  /// khoản (máy dùng chung vẫn giữ riêng được). Đăng xuất KHÔNG xóa: quên mật
+  /// khẩu thì thường là lúc đang đăng xuất.
+  static String khoaKhoiPhuc(String soDienThoai) => 'khoaKhoiPhuc_${soDienThoai.trim()}';
+
   static const _kho = FlutterSecureStorage(
     // iPhone: đọc được cả khi máy đang khóa, miễn là đã mở khóa ít nhất một lần
     // từ lúc bật máy. Token cũ lưu theo chế độ mặc định vẫn đọc được; lần làm

@@ -203,6 +203,11 @@ final Map<String, Widget Function()> _manHinh = {
 };
 
 void _dangKyGia() {
+  // Kho bảo mật giả, trống: màn đăng nhập đọc phần "Ghi nhớ đăng nhập" lúc mở.
+  // Không giả thì đọc lỗi → KhoToken chờ 300 ms thử lại → hẹn giờ còn treo khi
+  // bài thử kết thúc.
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'), (c) async => null);
   Get.put<AuthController>(_AuthGia());
   Get.put<ShellController>(_ShellGia());
   Get.put<KpiController>(_KpiGia());

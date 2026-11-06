@@ -9,6 +9,7 @@ import '../../../data/services/push_service.dart';
 import '../../home/controllers/kpi_controller.dart';
 import '../../shell/views/shell_view.dart';
 import '../views/login_view.dart';
+import '../views/hop_doi_mat_khau.dart';
 import '../../../core/utils/dong_bo.dart';
 import '../../../core/widgets/thong_bao.dart';
 
@@ -30,7 +31,10 @@ class AuthController extends GetxController {
     super.onInit();
     checkLoginStatus();
     wakeUpServer(); // Gọi ngầm để đánh thức Render ngay khi mở app
-    _vongDoi = AppLifecycleListener(onResume: khiMoLaiApp);
+    _vongDoi = AppLifecycleListener(
+      onResume: khiMoLaiApp,
+      onHide: () { _ghiLucRoiApp(); },
+    );
     // Phòng ban đổi tọa độ/bán kính trên web → máy chủ báo HO_SO cho mọi người
     _huyDongBo = DongBo.dangKy(DongBo.hoSo, () => dongBoHoSo());
   }
@@ -49,6 +53,13 @@ class AuthController extends GetxController {
       final refresh = await KhoToken.doc(KhoToken.refreshToken);
       // Access token hết hạn sau 1 giờ nhưng refresh token còn là vẫn vào được:
       // yêu cầu đầu tiên bị 401 thì app tự làm mới
+      // Không tích "Ghi nhớ đăng nhập" mà đã thoát app (hay để chạy nền quá
+      // lâu) → phiên kết thúc, phải đăng nhập lại
+      if ((token != null || refresh != null) && await phienTamDaHet()) {
+        await _donPhienTrenMay();
+        _baoMayChuDangXuat(token, refresh);
+        return;
+      }
       if (token != null || refresh != null) {
         final prefs = await SharedPreferences.getInstance();
         final userId = prefs.getInt('userId');
@@ -74,11 +85,14 @@ class AuthController extends GetxController {
           };
           isLoggedIn.value = true;
           PushService().khoiDong(); // mở lại app khi đã đăng nhập
-          dongBoHoSo();             // chạy nền, không giữ màn hình
+          // chạy nền, không giữ màn hình; xong (token đã được làm mới nếu cần)
+          // thì xin khóa khôi phục mật khẩu cho máy cài bản cũ chưa có khóa
+          dongBoHoSo().whenComplete(_giuKhoaKhoiPhuc);
         } else if (await _khoiPhucHoSo()) {
           // Còn token mà mất hồ sơ lưu máy: lấy lại từ máy chủ thay vì bắt đăng nhập
           isLoggedIn.value = true;
           PushService().khoiDong();
+          _giuKhoaKhoiPhuc();
         }
       }
     } catch (e) {
@@ -185,6 +199,9 @@ class AuthController extends GetxController {
   DateTime? _lanDongBoCuoi;
   void khiMoLaiApp() {
     if (!isLoggedIn.value) return;
+    phienTamDaHet().then((het) {
+      if (het && isLoggedIn.value) logout();
+    });
     final bayGio = DateTime.now();
     if (_lanDongBoCuoi != null && bayGio.difference(_lanDongBoCuoi!).inSeconds < 30) return;
     _lanDongBoCuoi = bayGio;
@@ -215,7 +232,7 @@ class AuthController extends GetxController {
   }
 
   // 2. Hàm đăng nhập (Login)
-  Future<void> login(String phone, String password) async {
+  Future<void> login(String phone, String password, {bool ghiNho = true}) async {
     if (phone.isEmpty || password.isEmpty) {
       snack("Lỗi", "Số điện thoại và mật khẩu không được trống!");
       return;
@@ -282,10 +299,13 @@ class AuthController extends GetxController {
 
         currentUser.value = mockUser;
         isLoggedIn.value = true;
+        await luuGhiNho(ghiNho, phone, password);
+        await _ghiLucRoiApp();
         PushService().khoiDong();
 
         snack("Thành công", "Đăng nhập thử nghiệm thành công!");
         Get.offAll(() => ShellView());
+        _nhacDoiMatKhauMacDinh(password);
       } else {
         // --- CHẾ ĐỘ THỰC TẾ (CONNECT BACKEND) ---
         // Gọi thẳng API đăng nhập với Timeout 60s để chờ Render thức dậy
@@ -336,10 +356,18 @@ class AuthController extends GetxController {
             'allowedRadius': data['allowedRadius'],
           };
           isLoggedIn.value = true;
+          final sdt = (data['phoneNumber'] ?? phone).toString();
+          await luuGhiNho(ghiNho, sdt, password);
+          await _ghiLucRoiApp();
+          final khoa = data['khoaKhoiPhuc'];
+          if (khoa is String && khoa.isNotEmpty) {
+            await KhoToken.ghi(KhoToken.khoaKhoiPhuc(sdt), khoa);
+          }
           PushService().khoiDong();
 
           snack("Thành công", "Đăng nhập hệ thống thành công!");
           Get.offAll(() => ShellView());
+          _nhacDoiMatKhauMacDinh(password);
         } else {
           final errMsg = response.data['message'] ?? "Sai mật khẩu hoặc tài khoản bị khóa";
           snack("Lỗi đăng nhập", errMsg);
@@ -355,6 +383,163 @@ class AuthController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  // ── Ghi nhớ đăng nhập ────────────────────────────────────────────────────
+
+  /// Không tích "Ghi nhớ đăng nhập" thì rời app quá chừng này là phải đăng nhập
+  /// lại. Không cắt ngay lúc app bị tắt: mở camera chấm công, máy yếu hay giết
+  /// app chạy nền rồi mở lại — cắt ngay thì đang chấm công bị đá ra.
+  static const choKhiKhongGhiNho = Duration(minutes: 10);
+  static const _khoaRoiApp = 'roiAppLuc';
+
+  Future<void> _ghiLucRoiApp() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_khoaRoiApp, DateTime.now().millisecondsSinceEpoch);
+    } catch (_) {}
+  }
+
+  /// Phiên đăng nhập "không ghi nhớ" đã hết chưa: bỏ tích lúc đăng nhập VÀ đã
+  /// rời app quá [choKhiKhongGhiNho] (hoặc không rõ rời lúc nào).
+  Future<bool> phienTamDaHet() async {
+    if (await KhoToken.doc(KhoToken.ghiNhoDangNhap) != '0') return false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final luc = prefs.getInt(_khoaRoiApp);
+      if (luc == null) return true;
+      return DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(luc)) >= choKhiKhongGhiNho;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Lưu lựa chọn ở ô "Ghi nhớ đăng nhập" lúc đăng nhập thành công.
+  Future<void> luuGhiNho(bool ghiNho, String sdt, String matKhau) async {
+    if (ghiNho) {
+      await KhoToken.ghi(KhoToken.ghiNhoDangNhap, '1');
+      await KhoToken.ghi(KhoToken.ghiNhoSdt, sdt);
+      await KhoToken.ghi(KhoToken.ghiNhoMatKhau, matKhau);
+    } else {
+      await KhoToken.ghi(KhoToken.ghiNhoDangNhap, '0');
+      await KhoToken.xoa(KhoToken.ghiNhoSdt);
+      await KhoToken.xoa(KhoToken.ghiNhoMatKhau);
+    }
+  }
+
+  /// Đọc lại để màn đăng nhập điền sẵn. Chưa từng chọn → coi như có ghi nhớ.
+  Future<({bool ghiNho, String? sdt, String? matKhau})> docGhiNho() async {
+    final ghiNho = await KhoToken.doc(KhoToken.ghiNhoDangNhap) != '0';
+    if (!ghiNho) return (ghiNho: false, sdt: null, matKhau: null);
+    return (
+      ghiNho: true,
+      sdt: await KhoToken.doc(KhoToken.ghiNhoSdt),
+      matKhau: await KhoToken.doc(KhoToken.ghiNhoMatKhau),
+    );
+  }
+
+  /// Mật khẩu đổi (hay được đặt lại) thì sửa luôn bản đã ghi nhớ của đúng số
+  /// đó — không thì lần sau màn đăng nhập điền sẵn mật khẩu cũ, bấm là sai.
+  Future<void> _capNhatMatKhauDaNho(String sdt, String matKhauMoi) async {
+    if (sdt.isEmpty) return;
+    if (await KhoToken.doc(KhoToken.ghiNhoDangNhap) == '0') return;
+    if (await KhoToken.doc(KhoToken.ghiNhoSdt) != sdt) return;
+    await KhoToken.ghi(KhoToken.ghiNhoMatKhau, matKhauMoi);
+  }
+
+  /// Xóa token và hồ sơ lưu máy (không đụng phần ghi nhớ / khóa khôi phục).
+  Future<void> _donPhienTrenMay() async {
+    await KhoToken.xoa(KhoToken.accessToken);
+    await KhoToken.xoa(KhoToken.refreshToken);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+    } catch (_) {}
+    currentUser.clear();
+    isLoggedIn.value = false;
+  }
+
+  // ── Quên mật khẩu ────────────────────────────────────────────────────────
+
+  static const matKhauMacDinh = '123456';
+
+  /// Đăng nhập bằng mật khẩu mặc định thì nhắc đổi ngay: ai biết số điện
+  /// thoại cũng đoán được 123456.
+  void _nhacDoiMatKhauMacDinh(String matKhau) {
+    if (matKhau != matKhauMacDinh) return;
+    Future.delayed(const Duration(milliseconds: 600), () {
+      moHopDoiMatKhau(this,
+          matKhauCu: matKhau,
+          loiNhac: 'Bạn đang dùng mật khẩu mặc định 123456 — ai biết số điện thoại của bạn '
+              'cũng đăng nhập được. Hãy đặt mật khẩu mới.');
+    });
+  }
+
+  /// Điện thoại này có khóa khôi phục của tài khoản [sdt] chưa (tức đã từng
+  /// đăng nhập tài khoản đó trên bản app có tính năng quên mật khẩu).
+  Future<bool> coKhoaKhoiPhuc(String sdt) async {
+    final khoa = await KhoToken.doc(KhoToken.khoaKhoiPhuc(sdt));
+    return khoa != null && khoa.isNotEmpty;
+  }
+
+  /// Đặt lại mật khẩu tài khoản [sdt] về 123456 bằng khóa của máy này.
+  /// Trả về true nếu xong.
+  Future<bool> quenMatKhau(String sdt) async {
+    sdt = sdt.trim();
+    final khoa = await KhoToken.doc(KhoToken.khoaKhoiPhuc(sdt));
+    if (khoa == null || khoa.isEmpty) return false;
+    try {
+      isLoading.value = true;
+      if (ApiClient.isDebugMode) {
+        await Future.delayed(const Duration(seconds: 1));
+      } else {
+        await ApiClient.dio.post(
+          '/auth/quen-mat-khau',
+          data: {'phoneNumber': sdt, 'khoaKhoiPhuc': khoa},
+          options: dio_pkg.Options(
+            sendTimeout: const Duration(seconds: 90),
+            receiveTimeout: const Duration(seconds: 90),
+          ),
+        );
+      }
+      await _capNhatMatKhauDaNho(sdt, matKhauMacDinh);
+      return true;
+    } catch (e) {
+      final loi = describeApiFailure(e, action: 'đặt lại mật khẩu');
+      snack(loi.kind == ApiFailureKind.user ? 'Không đặt lại được mật khẩu' : loi.title, loi.message,
+          duration: const Duration(seconds: 8));
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// Máy đang đăng nhập (kể cả từ bản app cũ chưa có khóa) xin khóa khôi phục,
+  /// hoặc xác nhận khóa đang giữ còn hiệu lực. Chạy nền, lỗi thì thôi — lần mở
+  /// app sau thử lại.
+  ///
+  /// Dùng Dio riêng KHÔNG interceptor: lỗi gì ở đây (kể cả 401 khi máy chủ chưa
+  /// cập nhật) cũng không được kéo theo làm mới token hay đăng xuất.
+  Future<void> _giuKhoaKhoiPhuc() async {
+    if (ApiClient.isDebugMode || !isLoggedIn.value) return;
+    final sdt = currentUser['phoneNumber']?.toString() ?? '';
+    final token = await KhoToken.doc(KhoToken.accessToken);
+    if (sdt.isEmpty || token == null) return;
+    try {
+      final cu = await KhoToken.doc(KhoToken.khoaKhoiPhuc(sdt));
+      final dio = dio_pkg.Dio(dio_pkg.BaseOptions(
+        baseUrl: ApiClient.baseUrl,
+        connectTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(seconds: 20),
+        headers: {'Authorization': 'Bearer $token'},
+      ));
+      final res = await dio.post('/auth/khoa-khoi-phuc', data: {'khoaHienCo': cu});
+      final data = res.data is Map ? res.data['data'] : null;
+      final khoa = data is Map ? data['khoaKhoiPhuc'] : null;
+      if (khoa is String && khoa.isNotEmpty && khoa != cu) {
+        await KhoToken.ghi(KhoToken.khoaKhoiPhuc(sdt), khoa);
+      }
+    } catch (_) {}
   }
 
   // 3. Hàm đăng xuất (Logout)
@@ -450,6 +635,7 @@ class AuthController extends GetxController {
         });
 
         if (response.statusCode == 200) {
+          await _capNhatMatKhauDaNho(currentUser['phoneNumber']?.toString() ?? '', newPassword);
           Get.back(); // Đóng dialog đổi mật khẩu
           await Get.defaultDialog(
             title: "Thành công",
