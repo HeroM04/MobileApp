@@ -2,13 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/auth_controller.dart';
 
-/// Hộp "Đổi mật khẩu" — dùng ở trang Cá nhân và ngay sau khi đăng nhập bằng
-/// mật khẩu mặc định 123456.
-///
-/// [matKhauCu] điền sẵn ô "Mật khẩu hiện tại" (vừa đăng nhập bằng 123456 thì
-/// khỏi gõ lại). [loiNhac] hiện một dòng giải thích phía trên các ô.
-void moHopDoiMatKhau(AuthController controller, {String? matKhauCu, String? loiNhac}) {
-  final oldPasswordCtrl = TextEditingController(text: matKhauCu ?? '');
+/// Hộp "Đổi mật khẩu" ở trang Cá nhân.
+void moHopDoiMatKhau(AuthController controller) {
+  final oldPasswordCtrl = TextEditingController();
   final newPasswordCtrl = TextEditingController();
   final confirmPasswordCtrl = TextEditingController();
 
@@ -22,19 +18,6 @@ void moHopDoiMatKhau(AuthController controller, {String? matKhauCu, String? loiN
     contentPadding: const EdgeInsets.all(16),
     content: Column(
       children: [
-        if (loiNhac != null) ...[
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF7E6),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFF5D08A)),
-            ),
-            child: Text(loiNhac, style: const TextStyle(fontSize: 13, color: Color(0xFF7A4B00))),
-          ),
-          const SizedBox(height: 12),
-        ],
         TextField(
           controller: oldPasswordCtrl,
           obscureText: true,
@@ -91,8 +74,7 @@ void moHopDoiMatKhau(AuthController controller, {String? matKhauCu, String? loiN
     )),
     cancel: TextButton(
       onPressed: () => Get.back(),
-      child: Text(loiNhac != null ? "Để sau" : "Hủy",
-          style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+      child: const Text("Hủy", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
     ),
   );
 }

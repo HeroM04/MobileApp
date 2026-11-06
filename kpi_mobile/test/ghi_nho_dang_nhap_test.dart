@@ -96,19 +96,11 @@ void main() {
     expect(await auth.phienTamDaHet(), isFalse);
   });
 
-  test('quên mật khẩu: máy chưa có khóa của tài khoản đó → không gọi máy chủ, trả false', () async {
-    final auth = _AuthGia();
-    expect(await auth.coKhoaKhoiPhuc('0912345678'), isFalse);
-    expect(await auth.quenMatKhau('0912345678'), isFalse);
-
-    kho[KhoToken.khoaKhoiPhuc('0912345678')] = 'khoa-may';
-    expect(await auth.coKhoaKhoiPhuc(' 0912345678 '), isTrue);
-    expect(await auth.coKhoaKhoiPhuc('0987654321'), isFalse);   // khóa theo từng tài khoản
+  test('quên mật khẩu: để trống số điện thoại → không gọi máy chủ, trả false', () async {
+    expect(await _AuthGia().quenMatKhau('   '), isFalse);
   });
 
-  test('khóa khôi phục và phần ghi nhớ không nằm chung chỗ với token (đăng xuất không xóa)', () {
-    expect(KhoToken.khoaKhoiPhuc('0912345678'), isNot(KhoToken.accessToken));
-    expect(KhoToken.khoaKhoiPhuc('0912345678'), isNot(KhoToken.refreshToken));
+  test('phần ghi nhớ không nằm chung chỗ với token (đăng xuất không xóa)', () {
     expect([KhoToken.ghiNhoDangNhap, KhoToken.ghiNhoSdt, KhoToken.ghiNhoMatKhau],
         isNot(contains(anyOf(KhoToken.accessToken, KhoToken.refreshToken))));
   });

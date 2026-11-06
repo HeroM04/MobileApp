@@ -12,19 +12,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:kpi_mobile/core/theme/giao_dien.dart';
 import 'package:kpi_mobile/features/auth/controllers/auth_controller.dart';
-import 'package:kpi_mobile/features/auth/views/hop_doi_mat_khau.dart';
 import 'package:kpi_mobile/features/auth/views/login_view.dart';
 
 class _AuthGia extends AuthController {
-  /// Điện thoại này đã từng đăng nhập tài khoản đang gõ chưa.
-  bool coKhoa = false;
-
   @override
   // ignore: must_call_super
   void onInit() {}
-
-  @override
-  Future<bool> coKhoaKhoiPhuc(String sdt) async => coKhoa;
 
   @override
   Future<bool> quenMatKhau(String sdt) async => true;
@@ -49,23 +42,6 @@ void main() {
   setUpAll(_napPhong);
   tearDown(Get.reset);
 
-  Future<_AuthGia> dung(WidgetTester tester, Widget home) async {
-    tester.view.physicalSize = const Size(390 * 2, 844 * 2);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-        const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'), (c) async => null);
-    final auth = Get.put<AuthController>(_AuthGia()) as _AuthGia;
-    await tester.pumpWidget(GetMaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: kieuChuApp(),
-      builder: (context, child) => gioiHanCoChu(context, child!),
-      home: home,
-    ));
-    await tester.pump(const Duration(milliseconds: 100));
-    return auth;
-  }
-
   Future<void> cho(WidgetTester tester) async {
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 100));
@@ -73,7 +49,19 @@ void main() {
   }
 
   testWidgets('luồng quên mật khẩu', (tester) async {
-    final auth = await dung(tester, const LoginView());
+    tester.view.physicalSize = const Size(390 * 2, 844 * 2);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'), (c) async => null);
+    Get.put<AuthController>(_AuthGia());
+    await tester.pumpWidget(GetMaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: kieuChuApp(),
+      builder: (context, child) => gioiHanCoChu(context, child!),
+      home: const LoginView(),
+    ));
+    await tester.pump(const Duration(milliseconds: 100));
     await expectLater(find.byType(GetMaterialApp), matchesGoldenFile('anh/quen_mk_1_man_dang_nhap.png'));
 
     // Gõ số điện thoại rồi bấm "Quên mật khẩu?"
@@ -82,34 +70,13 @@ void main() {
     await cho(tester);
     await expectLater(find.byType(GetMaterialApp), matchesGoldenFile('anh/quen_mk_2_hop_quen_mat_khau.png'));
 
-    // Máy này CHƯA từng đăng nhập tài khoản đó
+    // Đặt lại xong: điền sẵn 123456
     await tester.tap(find.text('Đặt lại về 123456'));
     await cho(tester);
-    await expectLater(find.byType(GetMaterialApp), matchesGoldenFile('anh/quen_mk_3_may_chua_dang_nhap.png'));
-    await tester.tap(find.text('Đã hiểu'));
-    await cho(tester);
+    await expectLater(find.byType(GetMaterialApp), matchesGoldenFile('anh/quen_mk_3_da_dat_lai.png'));
 
-    // Máy chính chủ: đặt lại xong, điền sẵn 123456
-    auth.coKhoa = true;
-    await tester.tap(find.text('Quên mật khẩu?'));
-    await cho(tester);
-    await tester.tap(find.text('Đặt lại về 123456'));
-    await cho(tester);
-    await expectLater(find.byType(GetMaterialApp), matchesGoldenFile('anh/quen_mk_4_da_dat_lai.png'));
     // Cho thông báo tự tắt hẳn (hết giờ + hiệu ứng trượt ra), không thì bài thử báo hẹn giờ còn treo
     await tester.pump(const Duration(seconds: 7));
-    await cho(tester);
-  });
-
-  testWidgets('đăng nhập bằng 123456 → nhắc đổi mật khẩu', (tester) async {
-    final auth = await dung(tester, const Scaffold(backgroundColor: Color(0xFFF4F6FA)));
-    moHopDoiMatKhau(auth,
-        matKhauCu: '123456',
-        loiNhac: 'Bạn đang dùng mật khẩu mặc định 123456 — ai biết số điện thoại của bạn '
-            'cũng đăng nhập được. Hãy đặt mật khẩu mới.');
-    await cho(tester);
-    await expectLater(find.byType(GetMaterialApp), matchesGoldenFile('anh/quen_mk_5_nhac_doi_mat_khau.png'));
-    await tester.tap(find.text('Để sau'));
     await cho(tester);
   });
 }

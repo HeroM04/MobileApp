@@ -22,11 +22,6 @@ class KhoToken {
   static const ghiNhoSdt = 'ghiNhoSdt';
   static const ghiNhoMatKhau = 'ghiNhoMatKhau';
 
-  /// Khóa khôi phục mật khẩu máy chủ cấp cho điện thoại này, theo từng tài
-  /// khoản (máy dùng chung vẫn giữ riêng được). Đăng xuất KHÔNG xóa: quên mật
-  /// khẩu thì thường là lúc đang đăng xuất.
-  static String khoaKhoiPhuc(String soDienThoai) => 'khoaKhoiPhuc_${soDienThoai.trim()}';
-
   static const _kho = FlutterSecureStorage(
     // iPhone: đọc được cả khi máy đang khóa, miễn là đã mở khóa ít nhất một lần
     // từ lúc bật máy. Token cũ lưu theo chế độ mặc định vẫn đọc được; lần làm

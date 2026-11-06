@@ -38,8 +38,7 @@ class _LoginViewState extends State<LoginView> {
     });
   }
 
-  /// Quên mật khẩu: hỏi số điện thoại, đặt lại về 123456 nếu máy này từng
-  /// đăng nhập tài khoản đó; không thì chỉ cách nhờ Admin.
+  /// Quên mật khẩu: hỏi số điện thoại rồi đặt lại về 123456.
   Future<void> _quenMatKhau() async {
     FocusScope.of(context).unfocus();
     final sdtCtrl = TextEditingController(text: _phoneController.text.trim());
@@ -53,15 +52,8 @@ class _LoginViewState extends State<LoginView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                "Mật khẩu sẽ được đặt lại về 123456. Mọi máy đang đăng nhập tài khoản này "
-                "sẽ bị đăng xuất.",
+                "Nhập số điện thoại đăng nhập, mật khẩu sẽ được đặt lại về 123456.",
                 style: TextStyle(fontSize: 14, color: Color(0xFF334155)),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "Chỉ làm được trên điện thoại bạn đã từng đăng nhập tài khoản này. "
-                "Máy khác thì nhờ Admin đặt lại.",
-                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -93,28 +85,12 @@ class _LoginViewState extends State<LoginView> {
     );
     if (sdt == null || !mounted) return;
 
-    if (!await authController.coKhoaKhoiPhuc(sdt)) {
-      await Get.dialog(AlertDialog(
-        title: const Text("Không tự đặt lại được",
-            style: TextStyle(color: Color(0xFF0F2C59), fontWeight: FontWeight.w800)),
-        content: Text(
-          "Điện thoại này chưa từng đăng nhập tài khoản $sdt (trên bản app có nút Quên mật khẩu), "
-          "nên không tự đặt lại được — để người khác không reset được tài khoản của bạn.\n\n"
-          // Không dùng mũi tên "→": phông trên một số máy không có, hiện thành ô vuông
-          "Nhờ Admin đặt lại mật khẩu cho bạn trên Web Admin.",
-        ),
-        actions: [TextButton(onPressed: () => Get.back(), child: const Text("Đã hiểu"))],
-      ));
-      return;
-    }
-
     if (await authController.quenMatKhau(sdt) && mounted) {
       setState(() {
         _phoneController.text = sdt;
         _passwordController.text = AuthController.matKhauMacDinh;
       });
-      snack("Đã đặt lại mật khẩu",
-          "Mật khẩu giờ là 123456 (đã điền sẵn). Bấm Đăng nhập rồi đặt mật khẩu mới.",
+      snack("Đã đặt lại mật khẩu", "Mật khẩu giờ là 123456 (đã điền sẵn). Bấm Đăng nhập.",
           duration: const Duration(seconds: 6));
     }
   }
