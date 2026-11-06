@@ -100,7 +100,8 @@ class _LoginViewState extends State<LoginView> {
         content: Text(
           "Điện thoại này chưa từng đăng nhập tài khoản $sdt (trên bản app có nút Quên mật khẩu), "
           "nên không tự đặt lại được — để người khác không reset được tài khoản của bạn.\n\n"
-          "Nhờ Admin đặt lại mật khẩu trên web (Nhân sự → Đặt lại mật khẩu).",
+          // Không dùng mũi tên "→": phông trên một số máy không có, hiện thành ô vuông
+          "Nhờ Admin đặt lại mật khẩu cho bạn trên Web Admin.",
         ),
         actions: [TextButton(onPressed: () => Get.back(), child: const Text("Đã hiểu"))],
       ));
