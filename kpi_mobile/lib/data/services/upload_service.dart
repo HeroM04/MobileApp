@@ -1,10 +1,13 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import '../../core/network/api_client.dart';
+import '../../core/utils/thu_nho_anh.dart';
 
 class UploadService {
-  Future<String?> uploadFile(File file) async {
+  Future<String?> uploadFile(File goc) async {
     try {
+      // Ảnh trên 2 MB (thường là ảnh chụp màn hình PNG) nén sang JPEG trên máy trước
+      final file = await nenAnhTruocKhiGui(goc);
       final fileName = file.path.split('/').last;
       
       print('--- UPLOAD API LOG ---');

@@ -415,6 +415,37 @@ class CheckinView extends StatelessWidget {
             if (controller.isOutOfRange.value) {
               return Column(
                 children: [
+                  // GPS có thể đang sai (yếu tín hiệu / tắt Vị trí chính xác): nói rõ
+                  // để người đang ở công ty biết chụp lại thay vì gửi duyệt.
+                  if (controller.goiYViTri.value.isNotEmpty) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF8EC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFF5C77E)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            controller.goiYViTri.value,
+                            style: const TextStyle(color: Color(0xFF7A4B00), fontSize: 13, height: 1.35),
+                          ),
+                          if (controller.viTriGanDung.value)
+                            TextButton(
+                              onPressed: controller.moCaiDatViTri,
+                              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                              child: const Text('Mở Cài đặt'),
+                            )
+                          else
+                            const SizedBox(height: 6),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   TextField(
                     controller: reasonController,
                     style: const TextStyle(color: Color(0xFF0F2C59), fontWeight: FontWeight.w600, fontSize: 14),
