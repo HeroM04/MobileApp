@@ -340,6 +340,7 @@ class _DaoTaoViewState extends State<DaoTaoView> {
     return HistoryDateListView(
       key: const ValueKey('lich-su-1-kem-1'),
       onFetchHistory: (date) => controller.fetchLichSu1Kem1(date),
+      locTuChoi: true,
       onFetchMonth: (month) => taiLichSuThang('/training/1-on-1/my', month),
       thoiDiemCua: (item) => item['submittedAt']?.toString(),
       emptyMessageThang: 'Không có báo cáo đào tạo 1-1 nào trong tháng này.',
@@ -353,8 +354,10 @@ class _DaoTaoViewState extends State<DaoTaoView> {
           tieuDe: (item['content'] ?? '').toString(),
           submittedAt: item['submittedAt'],
           trangThai: status,
+          lyDoTuChoi: lyDoTuChoiCua(item),
           onTap: () => xemChiTietLichSu(
             tieuDe: 'Báo cáo đào tạo 1-1',
+            lyDoTuChoi: lyDoTuChoiCua(item),
             submittedAt: item['submittedAt'],
             trangThai: status,
             nhomDiem: 'Thực chiến',

@@ -11,6 +11,30 @@ import '../../../core/widgets/thong_bao.dart';
 import '../../../core/utils/quyen_anh.dart';
 import '../../../core/utils/dong_bo.dart';
 
+/// Tên hiển thị của mã nền tảng máy chủ lưu.
+String tenNenTang(String? ma) => switch ((ma ?? '').toUpperCase()) {
+      'FACEBOOK' => 'Facebook',
+      'TIKTOK' => 'TikTok',
+      'ZALO' => 'Zalo',
+      _ => 'Khác',
+    };
+
+String goiYLink(String nenTang) => switch (nenTang) {
+      'TIKTOK' => 'https://www.tiktok.com/@ten/video/...',
+      'ZALO' => 'Không bắt buộc với Zalo',
+      _ => 'https://facebook.com/username/posts/...',
+    };
+
+/// Facebook / TikTok bắt buộc link; Zalo để trống được. Có dán thì phải là link.
+String? kiemTraLink(String nenTang, String? v) {
+  final s = v?.trim() ?? '';
+  if (s.isEmpty) {
+    return nenTang == 'ZALO' ? null : 'Dán link bài trên ${tenNenTang(nenTang)} để Admin mở ra kiểm tra';
+  }
+  if (!s.toLowerCase().startsWith('http')) return 'Link phải bắt đầu bằng http';
+  return null;
+}
+
 class BaiPostView extends StatefulWidget {
   const BaiPostView({super.key});
 
@@ -30,6 +54,11 @@ class _BaiPostViewState extends State<BaiPostView> {
   /// VIDEO = video xây kênh, POST = bài đăng/story. Cả hai cùng 5đ nhóm Lan tỏa,
   /// tách ra để Admin theo dõi được ai chịu khó làm video.
   String _contentType = 'POST';
+
+  /// FACEBOOK / TIKTOK / ZALO. Facebook và TikTok có link từng bài nên bắt buộc
+  /// dán link; Zalo không có link công khai nên không bắt (máy chủ kiểm lại).
+  String _nenTang = 'FACEBOOK';
+  bool get _canLink => _nenTang != 'ZALO';
 
   /// Gợi ý hashtag — chỉ để nhắc, không chặn gửi (Admin xem trên ảnh chụp).
   final List<String> _goiYHashtag = ["#trilongland", "#bds", "#kpi"];
@@ -61,7 +90,7 @@ class _BaiPostViewState extends State<BaiPostView> {
 
     final link = _urlController.text.trim();
     final failure = await controller.submitPost(
-      platform: link.contains("facebook") ? "FACEBOOK" : "OTHER",
+      platform: _nenTang,
       contentType: _contentType,
       link: link,
       caption: _captionController.text.trim(),
@@ -138,6 +167,7 @@ class _BaiPostViewState extends State<BaiPostView> {
 
   Widget _buildHistoryTab() {
     return HistoryDateListView(
+      locTuChoi: true,
       onFetchHistory: (date) => controller.fetchHistory(date),
       onFetchMonth: (month) => taiLichSuThang('/social-posts/my-posts', month),
       thoiDiemCua: (item) => item['submittedAt']?.toString(),
@@ -147,7 +177,7 @@ class _BaiPostViewState extends State<BaiPostView> {
       itemBuilder: (item, index) {
         final isVideo = item['contentType'] == 'VIDEO';
         final loai = isVideo ? 'Video xây kênh' : 'Bài đăng';
-        final nenTang = item['platform'] == 'FACEBOOK' ? 'Facebook' : 'Khác';
+        final nenTang = tenNenTang(item['platform']?.toString());
         final status = (item['status'] ?? 'PENDING').toString();
         return TheLichSu(
           anh: item['screenshotUrl']?.toString(),
@@ -157,8 +187,10 @@ class _BaiPostViewState extends State<BaiPostView> {
           noiDung: item['caption']?.toString(),
           submittedAt: item['submittedAt'],
           trangThai: status,
+          lyDoTuChoi: lyDoTuChoiCua(item),
           onTap: () => xemChiTietLichSu(
             tieuDe: loai,
+            lyDoTuChoi: lyDoTuChoiCua(item),
             submittedAt: item['submittedAt'],
             trangThai: status,
             nhomDiem: 'Lan tỏa',
@@ -169,6 +201,38 @@ class _BaiPostViewState extends State<BaiPostView> {
           ),
         );
       },
+    );
+  }
+
+  Widget _chipNenTang(String value, String label, IconData icon) {
+    final bool selected = _nenTang == value;
+    return GestureDetector(
+      onTap: () => setState(() => _nenTang = value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 6),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF0F2C59) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: selected ? const Color(0xFF0F2C59) : const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 17, color: selected ? Colors.white : const Color(0xFF1B3B6F)),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: selected ? Colors.white : const Color(0xFF1B3B6F),
+                  )),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -238,7 +302,7 @@ class _BaiPostViewState extends State<BaiPostView> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    "Đăng bài truyền thông dự án lên Facebook/Zalo/TikTok rồi gửi ảnh chụp màn hình bài đăng. Link và caption có thì dán, không có cũng được. Bài được duyệt +5 điểm nhóm Lan tỏa.",
+                    "Đăng bài truyền thông dự án lên Facebook / TikTok / Zalo rồi gửi ảnh chụp màn hình bài đăng. Facebook và TikTok cần dán link bài; Zalo không cần. Bài được duyệt +5 điểm nhóm Lan tỏa.",
                     style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.3),
                   ),
                   const Divider(height: 24),
@@ -255,23 +319,33 @@ class _BaiPostViewState extends State<BaiPostView> {
                   ),
                   const SizedBox(height: 16),
 
+                  // Đăng trên nền tảng nào
+                  const Text("ĐĂNG TRÊN", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(child: _chipNenTang('FACEBOOK', 'Facebook', Icons.facebook)),
+                      const SizedBox(width: 8),
+                      Expanded(child: _chipNenTang('TIKTOK', 'TikTok', Icons.music_note_rounded)),
+                      const SizedBox(width: 8),
+                      Expanded(child: _chipNenTang('ZALO', 'Zalo', Icons.chat_bubble_outline_rounded)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
                   // Đường dẫn bài đăng
-                  const Text("LINK BÀI VIẾT (KHÔNG BẮT BUỘC)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
+                  Text(_canLink ? "LINK BÀI VIẾT (BẮT BUỘC)" : "LINK BÀI VIẾT (KHÔNG BẮT BUỘC)",
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1B3B6F))),
                   const SizedBox(height: 6),
                   TextFormField(
                     controller: _urlController,
                     decoration: InputDecoration(
-                      hintText: "https://facebook.com/username/posts/...",
+                      hintText: goiYLink(_nenTang),
                       prefixIcon: const Icon(Icons.link, color: Color(0xFF1B3B6F)),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
-                    // Để trống được (story, video không có link); có dán thì phải là link
-                    validator: (v) {
-                      final s = v?.trim() ?? '';
-                      if (s.isNotEmpty && !s.startsWith("http")) return "Link phải bắt đầu bằng http";
-                      return null;
-                    },
+                    validator: (v) => kiemTraLink(_nenTang, v),
                   ),
                   const SizedBox(height: 16),
 

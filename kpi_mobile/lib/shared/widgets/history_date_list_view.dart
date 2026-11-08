@@ -27,6 +27,11 @@ class HistoryDateListView extends StatefulWidget {
   /// không phải thoát ra vào lại.
   final String? loaiDongBo;
 
+  /// Có nút lọc "Tất cả / Bị từ chối" — cho các danh sách yêu cầu Admin duyệt.
+  /// Chọn "Bị từ chối" thì chuyển sang xem theo tháng (nếu có), vì yêu cầu bị
+  /// từ chối thưa, xem từng ngày khó tìm.
+  final bool locTuChoi;
+
   const HistoryDateListView({
     super.key,
     required this.onFetchHistory,
@@ -36,6 +41,7 @@ class HistoryDateListView extends StatefulWidget {
     this.thoiDiemCua,
     this.emptyMessageThang = 'Không có dữ liệu trong tháng này.',
     this.loaiDongBo,
+    this.locTuChoi = false,
   });
 
   @override
@@ -48,7 +54,18 @@ class _HistoryDateListViewState extends State<HistoryDateListView> {
   bool _theoThang = false;
   List<Map<String, dynamic>> _items = [];
   bool _isLoading = false;
+  bool _chiTuChoi = false;
   Worker? _ngheDongBo;
+
+  /// Các mục đang hiện: tất cả, hoặc chỉ mục bị từ chối khi bật lọc.
+  List<Map<String, dynamic>> get _hienThi =>
+      _chiTuChoi ? _items.where(laTuChoi).toList() : _items;
+
+  void _doiLoc(bool chiTuChoi) {
+    if (chiTuChoi == _chiTuChoi) return;
+    setState(() => _chiTuChoi = chiTuChoi);
+    if (chiTuChoi && _coCheDoThang && !_theoThang) _doiCheDo(true);
+  }
 
   bool get _coCheDoThang => widget.onFetchMonth != null && widget.thoiDiemCua != null;
 
@@ -157,19 +174,30 @@ class _HistoryDateListViewState extends State<HistoryDateListView> {
       children: [
         if (_coCheDoThang) _nutCheDo(),
         _theoThang ? _dauThang() : _dauNgay(),
+        if (widget.locTuChoi)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: NutLocTuChoi(
+              chiTuChoi: _chiTuChoi,
+              soTuChoi: _items.where(laTuChoi).length,
+              onDoi: _doiLoc,
+            ),
+          ),
 
         // --- Content ---
         Expanded(
           child: _isLoading
               ? const Center(child: CircularProgressIndicator(color: _navy))
-              : _items.isEmpty
-                  ? _trong(_theoThang ? widget.emptyMessageThang : widget.emptyMessage)
+              : _hienThi.isEmpty
+                  ? _trong(_chiTuChoi
+                      ? 'Không có yêu cầu nào bị từ chối trong ${_theoThang ? 'tháng' : 'ngày'} này.'
+                      : (_theoThang ? widget.emptyMessageThang : widget.emptyMessage))
                   : _theoThang
                       ? _danhSachThang()
                       : ListView.builder(
                           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                          itemCount: _items.length,
-                          itemBuilder: (ctx, idx) => widget.itemBuilder(_items[idx], idx),
+                          itemCount: _hienThi.length,
+                          itemBuilder: (ctx, idx) => widget.itemBuilder(_hienThi[idx], idx),
                         ),
         ),
       ],
@@ -256,7 +284,7 @@ class _HistoryDateListViewState extends State<HistoryDateListView> {
   }
 
   Widget _dauThang() {
-    final soNgay = nhomTheoNgay(_items, widget.thoiDiemCua!).length;
+    final soNgay = nhomTheoNgay(_hienThi, widget.thoiDiemCua!).length;
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       decoration: BoxDecoration(
@@ -277,9 +305,9 @@ class _HistoryDateListViewState extends State<HistoryDateListView> {
                   'Tháng ${_thangChon.month.toString().padLeft(2, '0')}/${_thangChon.year}',
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                 ),
-                if (!_isLoading && _items.isNotEmpty)
+                if (!_isLoading && _hienThi.isNotEmpty)
                   Text(
-                    '$soNgay ngày · ${_items.length} lượt',
+                    _chiTuChoi ? '${_hienThi.length} bị từ chối' : '$soNgay ngày · ${_items.length} lượt',
                     style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
                   ),
               ],
@@ -299,7 +327,7 @@ class _HistoryDateListViewState extends State<HistoryDateListView> {
   /// Danh sách tháng: mỗi ngày một tiêu đề, dưới là các mục của ngày đó
   /// (sớm → muộn). Ngày mới nhất ở trên cùng.
   Widget _danhSachThang() {
-    final nhom = nhomTheoNgay(_items, widget.thoiDiemCua!);
+    final nhom = nhomTheoNgay(_hienThi, widget.thoiDiemCua!);
     final dong = <Widget>[];
     for (final ngay in nhom) {
       dong.add(Padding(
@@ -341,6 +369,55 @@ class _HistoryDateListViewState extends State<HistoryDateListView> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Yêu cầu này đã bị Admin từ chối chưa.
+bool laTuChoi(Map<String, dynamic> item) => item['status']?.toString().toUpperCase() == 'REJECTED';
+
+/// Hai nút lọc "Tất cả / Bị từ chối (n)" — dùng chung cho mọi danh sách yêu
+/// cầu cần Admin duyệt (Lịch sử chấm công, thực chiến, bài đăng, đào tạo 1-1,
+/// chốt căn, đơn xin vắng, gieo hạt).
+class NutLocTuChoi extends StatelessWidget {
+  final bool chiTuChoi;
+  final int soTuChoi;
+  final ValueChanged<bool> onDoi;
+
+  const NutLocTuChoi({super.key, required this.chiTuChoi, required this.soTuChoi, required this.onDoi});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget nut(String chu, bool tuChoi) {
+      final chon = chiTuChoi == tuChoi;
+      final mau = tuChoi ? Colors.red.shade700 : _navy;
+      return Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: ChoiceChip(
+          label: Text(chu),
+          selected: chon,
+          onSelected: (_) => onDoi(tuChoi),
+          showCheckmark: false,
+          labelStyle: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: chon ? Colors.white : mau,
+          ),
+          selectedColor: mau,
+          backgroundColor: Colors.white,
+          side: BorderSide(color: chon ? mau : const Color(0xFFE2E8F0)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          visualDensity: VisualDensity.compact,
+        ),
+      );
+    }
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Wrap(children: [
+        nut('Tất cả', false),
+        nut(soTuChoi > 0 ? 'Bị từ chối ($soTuChoi)' : 'Bị từ chối', true),
+      ]),
     );
   }
 }

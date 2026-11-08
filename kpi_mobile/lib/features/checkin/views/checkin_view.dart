@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../controllers/checkin_controller.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
+import '../../../shared/widgets/the_lich_su.dart';
 import 'leave_request_tab.dart';
 import '../../../core/utils/dong_bo.dart';
 
@@ -62,6 +63,7 @@ class CheckinView extends StatelessWidget {
   Widget _buildHistoryTab() {
     return HistoryDateListView(
       onFetchHistory: (date) => controller.fetchHistory(date),
+      locTuChoi: true,
       onFetchMonth: (month) => controller.fetchHistoryMonth(month),
       thoiDiemCua: (item) => item['checkinTime']?.toString(),
       loaiDongBo: DongBo.chamCong,
@@ -80,6 +82,17 @@ class CheckinView extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: ListTile(
+            // Bị từ chối: bấm vào xem lý do Admin ghi
+            onTap: status == 'REJECTED'
+                ? () => xemYeuCauBiTuChoi(
+                      tieuDe: isCheckOut ? 'Chấm công ra bị từ chối' : 'Chấm công vào bị từ chối',
+                      thongTin: [
+                        MapEntry('Lúc', dateStr),
+                        MapEntry('Lý do bạn ghi', (item['note'] ?? '').toString()),
+                      ],
+                      lyDo: lyDoTuChoiCua(item),
+                    )
+                : null,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: CircleAvatar(
               backgroundColor: isCheckOut ? Colors.red.shade50 : Colors.green.shade50,
@@ -118,10 +131,16 @@ class CheckinView extends StatelessWidget {
             ),
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                note,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-                maxLines: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    note,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    maxLines: 2,
+                  ),
+                  if (status == 'REJECTED') DongLyDoTuChoi(lyDoTuChoiCua(item)),
+                ],
               ),
             ),
             trailing: Container(

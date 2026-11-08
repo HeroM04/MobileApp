@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/chot_can_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
+import '../../../shared/widgets/the_lich_su.dart';
 import '../../../data/services/lich_su_thang.dart';
 import '../../../core/widgets/thong_bao.dart';
 import '../../../core/utils/dong_bo.dart';
@@ -174,6 +175,7 @@ class _ChotCanViewState extends State<ChotCanView> with SingleTickerProviderStat
   Widget _buildHistoryTab() {
     return HistoryDateListView(
       onFetchHistory: (date) => controller.fetchHistory(date),
+      locTuChoi: true,
       onFetchMonth: (month) => taiLichSuThang('/deals/my-deals', month),
       thoiDiemCua: (item) => item['submittedAt']?.toString(),
       emptyMessageThang: 'Không có yêu cầu chốt căn nào trong tháng này.',
@@ -192,6 +194,19 @@ class _ChotCanViewState extends State<ChotCanView> with SingleTickerProviderStat
           margin: const EdgeInsets.only(bottom: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: ListTile(
+            // Bị từ chối: bấm vào xem lý do Admin ghi
+            onTap: status == 'REJECTED'
+                ? () => xemYeuCauBiTuChoi(
+                      tieuDe: 'Chốt căn bị từ chối',
+                      thongTin: [
+                        MapEntry('Dự án', projectName.toString()),
+                        MapEntry('Khách', customerName.toString()),
+                        MapEntry('Căn', unit.toString()),
+                        MapEntry('Gửi lúc', dateStr),
+                      ],
+                      lyDo: lyDoTuChoiCua(item),
+                    )
+                : null,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: CircleAvatar(
               backgroundColor: const Color(0xFF0F2C59).withOpacity(0.08),
@@ -208,6 +223,7 @@ class _ChotCanViewState extends State<ChotCanView> with SingleTickerProviderStat
                   Text('Căn: $unit', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 Text('Ngày: $dateStr',
                     style: const TextStyle(fontSize: 12, color: Color(0xFF0F2C59), fontWeight: FontWeight.w600)),
+                if (status == 'REJECTED') DongLyDoTuChoi(lyDoTuChoiCua(item)),
               ],
             ),
             trailing: Container(

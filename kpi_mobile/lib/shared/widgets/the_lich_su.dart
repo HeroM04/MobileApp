@@ -14,6 +14,101 @@ String gioTuIso(Object? iso) {
   return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 }
 
+/// Lý do Admin từ chối ghi trong bản ghi: `rejectReason` (bài đăng, thực
+/// chiến, đào tạo 1-1, chốt căn, chấm công) hoặc `reviewNote` (xin vắng,
+/// gieo hạt). Chỉ trả khi bản ghi đang bị từ chối.
+String? lyDoTuChoiCua(Map<String, dynamic> item) {
+  if (!laTuChoi(item)) return null;
+  for (final k in ['rejectReason', 'reviewNote']) {
+    final v = item[k]?.toString().trim() ?? '';
+    if (v.isNotEmpty) return v;
+  }
+  return null;
+}
+
+/// Dòng đỏ "Lý do từ chối: …" dưới mỗi thẻ lịch sử bị từ chối.
+class DongLyDoTuChoi extends StatelessWidget {
+  final String? lyDo;
+  final int? soDong;
+  const DongLyDoTuChoi(this.lyDo, {super.key, this.soDong = 2});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = lyDo?.trim() ?? '';
+    return Padding(
+      padding: const EdgeInsets.only(top: 3),
+      child: Text(
+        s.isEmpty ? 'Admin chưa ghi lý do từ chối.' : 'Lý do từ chối: $s',
+        maxLines: soDong,
+        overflow: soDong == null ? null : TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 12, color: Colors.red.shade700, fontWeight: FontWeight.w600, height: 1.3),
+      ),
+    );
+  }
+}
+
+/// Hộp xem một yêu cầu bị từ chối cho các thẻ không dùng [xemChiTietLichSu]
+/// (chấm công, chốt căn): vài dòng thông tin và lý do Admin ghi.
+void xemYeuCauBiTuChoi({
+  required String tieuDe,
+  List<MapEntry<String, String>> thongTin = const [],
+  String? lyDo,
+}) {
+  final dong = thongTin.where((e) => e.value.trim().isNotEmpty).toList();
+  Get.dialog(AlertDialog(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    title: Text(tieuDe, style: const TextStyle(color: _navy, fontWeight: FontWeight.bold, fontSize: 17)),
+    content: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final e in dong)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text.rich(TextSpan(children: [
+                TextSpan(text: '${e.key}: ', style: const TextStyle(color: Color(0xFF64748B))),
+                TextSpan(text: e.value, style: const TextStyle(fontWeight: FontWeight.w600)),
+              ]), style: const TextStyle(fontSize: 13, height: 1.35)),
+            ),
+          const SizedBox(height: 8),
+          _HopLyDo(lyDo),
+        ],
+      ),
+    ),
+    actions: [TextButton(onPressed: () => Get.back(), child: const Text('Đóng'))],
+  ));
+}
+
+/// Ô đỏ chứa lý do từ chối trong hộp chi tiết.
+class _HopLyDo extends StatelessWidget {
+  final String? lyDo;
+  const _HopLyDo(this.lyDo);
+
+  @override
+  Widget build(BuildContext context) {
+    final s = lyDo?.trim() ?? '';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('LÝ DO TỪ CHỐI', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red.shade700)),
+          const SizedBox(height: 4),
+          Text(s.isEmpty ? 'Admin chưa ghi lý do.' : s,
+              style: const TextStyle(fontSize: 13.5, height: 1.4, color: Color(0xFF1E293B))),
+        ],
+      ),
+    );
+  }
+}
+
 /// Một báo cáo đã nộp trong tab Lịch sử (Đào tạo 1-1, Thực chiến, Bài đăng):
 /// ảnh thu nhỏ, tiêu đề, nội dung tóm tắt, giờ nộp, nhãn trạng thái. Bấm vào
 /// mở [xemChiTietLichSu].
@@ -31,6 +126,9 @@ class TheLichSu extends StatelessWidget {
   final String trangThai;
   final VoidCallback onTap;
 
+  /// Lý do Admin từ chối — hiện thành dòng đỏ khi [trangThai] là REJECTED.
+  final String? lyDoTuChoi;
+
   const TheLichSu({
     super.key,
     required this.anh,
@@ -41,6 +139,7 @@ class TheLichSu extends StatelessWidget {
     required this.submittedAt,
     required this.trangThai,
     required this.onTap,
+    this.lyDoTuChoi,
   });
 
   @override
@@ -79,6 +178,7 @@ class TheLichSu extends StatelessWidget {
               const SizedBox(height: 2),
               Text('Nộp lúc ${gioTuIso(submittedAt)}',
                   style: const TextStyle(fontSize: 12, color: _navy, fontWeight: FontWeight.w600)),
+              if (trangThai.toUpperCase() == 'REJECTED') DongLyDoTuChoi(lyDoTuChoi),
             ],
           ),
         ),
@@ -109,11 +209,12 @@ void xemChiTietLichSu({
   String? noiDung,
   String? link,
   String? anh,
+  String? lyDoTuChoi,
 }) {
   final tt = trangThai.toUpperCase();
   final yNghia = switch (tt) {
     'APPROVED' => 'Admin đã duyệt — điểm $nhomDiem đã được cộng (xem khoản điểm ở mục Thông báo).',
-    'REJECTED' => 'Admin không duyệt báo cáo này nên không được cộng điểm.',
+    'REJECTED' => 'Admin không duyệt nên không được cộng điểm. Sửa theo lý do bên dưới rồi gửi lại.',
     _ => 'Đang chờ Admin duyệt. Duyệt xong mới được cộng điểm $nhomDiem.',
   };
   final dong = thongTin.where((e) => e.value.trim().isNotEmpty).toList();
@@ -137,6 +238,10 @@ void xemChiTietLichSu({
             ),
             child: Text(yNghia, style: TextStyle(fontSize: 12.5, height: 1.4, color: statusColor(tt))),
           ),
+          if (tt == 'REJECTED') ...[
+            const SizedBox(height: 8),
+            _HopLyDo(lyDoTuChoi),
+          ],
           if (dong.isNotEmpty) ...[
             const SizedBox(height: 10),
             for (final e in dong)

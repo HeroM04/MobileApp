@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 
 import '../controllers/referral_controller.dart';
 import '../../../core/widgets/thong_bao.dart';
+import '../../../shared/widgets/history_date_list_view.dart';
+import '../../../shared/widgets/the_lich_su.dart';
 
 /// Màn hình "Gieo hạt" — nhân sự giới thiệu người mới vào công ty.
 ///
@@ -24,6 +26,9 @@ class _GieoHatViewState extends State<GieoHatView> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
+
+  /// Lọc "Bị từ chối" trong danh sách đơn giới thiệu đã gửi.
+  bool _chiTuChoi = false;
 
   static const Color _navy = Color(0xFF0F2C59);
 
@@ -277,13 +282,31 @@ class _GieoHatViewState extends State<GieoHatView> {
           ),
         );
       }
+      final ds = _chiTuChoi
+          ? controller.mySubmissions.where(laTuChoi).toList()
+          : controller.mySubmissions.toList();
       return RefreshIndicator(
         onRefresh: controller.loadMine,
-        child: ListView.builder(
+        child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
-          itemCount: controller.mySubmissions.length,
-          itemBuilder: (context, i) => _buildCard(controller.mySubmissions[i]),
+          children: [
+            NutLocTuChoi(
+              chiTuChoi: _chiTuChoi,
+              soTuChoi: controller.mySubmissions.where(laTuChoi).length,
+              onDoi: (v) => setState(() => _chiTuChoi = v),
+            ),
+            const SizedBox(height: 10),
+            if (ds.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Text('Không có đơn nào bị từ chối.',
+                      style: TextStyle(fontSize: 13, color: Colors.grey)),
+                ),
+              ),
+            ...ds.map(_buildCard),
+          ],
         ),
       );
     });
@@ -341,7 +364,9 @@ class _GieoHatViewState extends State<GieoHatView> {
               Text('Được +15đ từ ngày ${_fmt(r['rewardDate']?.toString())} nếu bạn ấy vẫn còn làm',
                   style: const TextStyle(fontSize: 11, color: Color(0xFF1B3B6F))),
             ],
-            if ((r['reviewNote']?.toString() ?? '').isNotEmpty) ...[
+            if (status == 'REJECTED')
+              DongLyDoTuChoi(r['reviewNote']?.toString(), soDong: null)
+            else if ((r['reviewNote']?.toString() ?? '').isNotEmpty) ...[
               const SizedBox(height: 4),
               Text('Admin: ${r['reviewNote']}',
                   style: const TextStyle(fontSize: 11, color: Colors.grey)),

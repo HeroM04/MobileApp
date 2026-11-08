@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 
 import '../controllers/leave_controller.dart';
 import '../../../core/widgets/thong_bao.dart';
+import '../../../shared/widgets/history_date_list_view.dart';
+import '../../../shared/widgets/the_lich_su.dart';
 
 /// Tab "XIN VẮNG" trong màn hình Điểm danh.
 ///
@@ -21,6 +23,16 @@ class _LeaveRequestTabState extends State<LeaveRequestTab> {
   final LeaveController controller = Get.put(LeaveController());
   final TextEditingController _reasonController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
+
+  /// Lọc "Bị từ chối" trong danh sách đơn đã gửi.
+  bool _chiTuChoi = false;
+
+  /// Đơn bị Admin từ chối: trạng thái REJECTED, hoặc từ chối rồi thành vắng
+  /// không phép (ngày đã qua, không chấm công) — loại này có ghi chú Admin.
+  static bool _biTuChoi(Map<String, dynamic> r) {
+    final s = (r['status'] ?? '').toString();
+    return s == 'REJECTED' || (s == 'UNEXCUSED' && (r['reviewNote']?.toString().trim() ?? '').isNotEmpty);
+  }
 
   static const Color _navy = Color(0xFF0F2C59);
 
@@ -95,8 +107,28 @@ class _LeaveRequestTabState extends State<LeaveRequestTab> {
                 ),
               );
             }
+            final ds = _chiTuChoi
+                ? controller.myRequests.where(_biTuChoi).toList()
+                : controller.myRequests.toList();
             return Column(
-              children: controller.myRequests.map(_buildRequestCard).toList(),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                NutLocTuChoi(
+                  chiTuChoi: _chiTuChoi,
+                  soTuChoi: controller.myRequests.where(_biTuChoi).length,
+                  onDoi: (v) => setState(() => _chiTuChoi = v),
+                ),
+                const SizedBox(height: 8),
+                if (ds.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Center(
+                      child: Text('Không có đơn nào bị từ chối.',
+                          style: TextStyle(fontSize: 13, color: Colors.grey)),
+                    ),
+                  ),
+                ...ds.map(_buildRequestCard),
+              ],
             );
           }),
           const SizedBox(height: 24),
@@ -239,7 +271,9 @@ class _LeaveRequestTabState extends State<LeaveRequestTab> {
             const SizedBox(height: 6),
             Text(r['reason']?.toString() ?? '',
                 style: const TextStyle(fontSize: 12, color: Colors.black87, height: 1.35)),
-            if ((r['reviewNote']?.toString() ?? '').isNotEmpty) ...[
+            if (_biTuChoi(r))
+              DongLyDoTuChoi(r['reviewNote']?.toString(), soDong: null)
+            else if ((r['reviewNote']?.toString() ?? '').isNotEmpty) ...[
               const SizedBox(height: 4),
               Text('Ghi chú Admin: ${r['reviewNote']}',
                   style: const TextStyle(fontSize: 11, color: Colors.grey)),

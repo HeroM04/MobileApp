@@ -426,6 +426,7 @@ class _ThucChienViewState extends State<ThucChienView> {
   Widget _buildHistoryTab() {
     return HistoryDateListView(
       onFetchHistory: (date) => controller.fetchHistory(date),
+      locTuChoi: true,
       onFetchMonth: (month) => taiLichSuThang('/field-battle/my-battles', month),
       thoiDiemCua: (item) => item['submittedAt']?.toString(),
       emptyMessageThang: 'Không có báo cáo thực chiến nào trong tháng này.',
@@ -443,8 +444,10 @@ class _ThucChienViewState extends State<ThucChienView> {
           noiDung: item['content']?.toString(),
           submittedAt: item['submittedAt'],
           trangThai: status,
+          lyDoTuChoi: lyDoTuChoiCua(item),
           onTap: () => xemChiTietLichSu(
             tieuDe: 'Báo cáo thực chiến',
+            lyDoTuChoi: lyDoTuChoiCua(item),
             submittedAt: item['submittedAt'],
             trangThai: status,
             nhomDiem: 'Thực chiến',
