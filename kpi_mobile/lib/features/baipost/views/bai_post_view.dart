@@ -60,8 +60,9 @@ class _BaiPostViewState extends State<BaiPostView> {
   String _nenTang = 'FACEBOOK';
   bool get _canLink => _nenTang != 'ZALO';
 
-  /// Gợi ý hashtag — chỉ để nhắc, không chặn gửi (Admin xem trên ảnh chụp).
-  final List<String> _goiYHashtag = ["#trilongland", "#bds", "#kpi"];
+  /// Hashtag công ty — chỉ để nhắc, không bắt buộc, không chặn gửi. Hashtag
+  /// khác mỗi người tự thêm. (Bỏ #bds, #kpi theo yêu cầu 11/11/2026.)
+  static const List<String> _goiYHashtag = ["#trilongland", "#kientaosubenvung"];
 
   Future<void> _pickScreenshot() async {
     try {
@@ -394,7 +395,7 @@ class _BaiPostViewState extends State<BaiPostView> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Yêu cầu từ khóa
+                  // Hashtag gợi ý — không bắt buộc
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -406,11 +407,17 @@ class _BaiPostViewState extends State<BaiPostView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          "Gợi ý: bài đăng nên có #trilongland và 1 tag phụ",
+                          "HASHTAG (KHÔNG BẮT BUỘC)",
                           style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFB8860B)),
                         ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          "Nên có 2 hashtag công ty dưới đây, hashtag khác tùy bạn thêm.",
+                          style: TextStyle(fontSize: 11, color: Color(0xFF8A6D1F)),
+                        ),
                         const SizedBox(height: 6),
-                        Row(
+                        Wrap(
+                          runSpacing: 6,
                           children: _goiYHashtag.map((tag) {
                             return Container(
                               margin: const EdgeInsets.only(right: 8),
