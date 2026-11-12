@@ -47,6 +47,81 @@ class DongLyDoTuChoi extends StatelessWidget {
   }
 }
 
+/// Admin bấm "Chỉ tính công" cho lượt chấm công vào: vẫn tính ngày công nhưng
+/// không được điểm đúng giờ (0 điểm, hoặc tính là đi muộn). Trả nhãn hiển thị,
+/// null nếu lượt này tính điểm bình thường.
+String? chiTinhCongCua(Map<String, dynamic> item) {
+  switch (item['chiTinhCong']?.toString()) {
+    case 'KHONG_DIEM':
+      return 'Admin chỉ tính công — không cộng điểm đúng giờ';
+    case 'DI_MUON':
+      return 'Admin chỉ tính công — tính là đi muộn';
+  }
+  return null;
+}
+
+/// Dòng cam dưới thẻ chấm công khi Admin "Chỉ tính công", kèm lý do Admin ghi.
+class DongChiTinhCong extends StatelessWidget {
+  final Map<String, dynamic> item;
+  const DongChiTinhCong(this.item, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final nhan = chiTinhCongCua(item);
+    if (nhan == null) return const SizedBox.shrink();
+    final lyDo = item['chiTinhCongLyDo']?.toString().trim() ?? '';
+    return Padding(
+      padding: const EdgeInsets.only(top: 3),
+      child: Text(
+        lyDo.isEmpty ? nhan : '$nhan: $lyDo',
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 12, color: Colors.orange.shade800, fontWeight: FontWeight.w600, height: 1.3),
+      ),
+    );
+  }
+}
+
+/// Hộp xem lượt chấm công Admin "Chỉ tính công": giờ chấm và lý do Admin ghi.
+void xemChiTinhCong({
+  required String tieuDe,
+  List<MapEntry<String, String>> thongTin = const [],
+  required Map<String, dynamic> item,
+}) {
+  final dong = thongTin.where((e) => e.value.trim().isNotEmpty).toList();
+  final lyDo = item['chiTinhCongLyDo']?.toString().trim() ?? '';
+  Get.dialog(AlertDialog(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    title: Text(tieuDe, style: const TextStyle(color: _navy, fontWeight: FontWeight.bold, fontSize: 17)),
+    content: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final e in dong)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text.rich(TextSpan(children: [
+                TextSpan(text: '${e.key}: ', style: const TextStyle(color: Color(0xFF64748B))),
+                TextSpan(text: e.value, style: const TextStyle(fontWeight: FontWeight.w600)),
+              ]), style: const TextStyle(fontSize: 13, height: 1.35)),
+            ),
+          const SizedBox(height: 8),
+          _HopLyDo(
+            [chiTinhCongCua(item) ?? '', if (lyDo.isNotEmpty) 'Lý do: $lyDo'].join('\n'),
+            tieuDe: 'ADMIN CHỈ TÍNH CÔNG',
+            mau: Colors.orange,
+          ),
+          const SizedBox(height: 8),
+          const Text('Ngày này vẫn được tính công. Khoản điểm hiện trong mục Thông báo.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.35)),
+        ],
+      ),
+    ),
+    actions: [TextButton(onPressed: () => Get.back(), child: const Text('Đóng'))],
+  ));
+}
+
 /// Hộp xem một yêu cầu bị từ chối cho các thẻ không dùng [xemChiTietLichSu]
 /// (chấm công, chốt căn): vài dòng thông tin và lý do Admin ghi.
 void xemYeuCauBiTuChoi({
@@ -80,10 +155,12 @@ void xemYeuCauBiTuChoi({
   ));
 }
 
-/// Ô đỏ chứa lý do từ chối trong hộp chi tiết.
+/// Ô đỏ chứa lý do từ chối trong hộp chi tiết (ô cam cho "Chỉ tính công").
 class _HopLyDo extends StatelessWidget {
   final String? lyDo;
-  const _HopLyDo(this.lyDo);
+  final String tieuDe;
+  final MaterialColor mau;
+  const _HopLyDo(this.lyDo, {this.tieuDe = 'LÝ DO TỪ CHỐI', this.mau = Colors.red});
 
   @override
   Widget build(BuildContext context) {
@@ -92,14 +169,14 @@ class _HopLyDo extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.08),
+        color: mau.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
+        border: Border.all(color: mau.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('LÝ DO TỪ CHỐI', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red.shade700)),
+          Text(tieuDe, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: mau.shade700)),
           const SizedBox(height: 4),
           Text(s.isEmpty ? 'Admin chưa ghi lý do.' : s,
               style: const TextStyle(fontSize: 13.5, height: 1.4, color: Color(0xFF1E293B))),

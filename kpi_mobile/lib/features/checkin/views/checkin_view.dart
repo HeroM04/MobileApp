@@ -92,7 +92,14 @@ class CheckinView extends StatelessWidget {
                       ],
                       lyDo: lyDoTuChoiCua(item),
                     )
-                : null,
+                // Admin "Chỉ tính công": bấm vào xem vì sao không được điểm đúng giờ
+                : chiTinhCongCua(item) != null
+                    ? () => xemChiTinhCong(
+                          tieuDe: 'Chấm công vào · chỉ tính công',
+                          thongTin: [MapEntry('Lúc', dateStr)],
+                          item: item,
+                        )
+                    : null,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: CircleAvatar(
               backgroundColor: isCheckOut ? Colors.red.shade50 : Colors.green.shade50,
@@ -139,7 +146,7 @@ class CheckinView extends StatelessWidget {
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                     maxLines: 2,
                   ),
-                  if (status == 'REJECTED') DongLyDoTuChoi(lyDoTuChoiCua(item)),
+                  if (status == 'REJECTED') DongLyDoTuChoi(lyDoTuChoiCua(item)) else DongChiTinhCong(item),
                 ],
               ),
             ),
