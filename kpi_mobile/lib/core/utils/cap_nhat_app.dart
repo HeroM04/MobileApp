@@ -145,6 +145,11 @@ class CapNhatApp {
   }
 }
 
+/// Hộp "Có bản mới" dựng sẵn — chỉ để chụp màn hình xem thử
+/// (test_thu_cong/cap_nhat_anh_test.dart), app không gọi.
+@visibleForTesting
+Widget hopCapNhatXemThu(BanMoi ban) => _HopCapNhat(ban: ban);
+
 /// Hộp "Có bản mới". Trả về true nếu người dùng chọn "Để sau".
 class _HopCapNhat extends StatefulWidget {
   final BanMoi ban;
