@@ -52,6 +52,8 @@ void main() {
         builder: (context, child) => gioiHanCoChu(context, child!),
         home: const Scaffold(body: Center(child: Text('Màn hình chính', style: TextStyle(color: Colors.grey)))),
       ));
+      // test_thu_cong không nằm trong test/ nên analyzer không coi là test
+      // ignore: invalid_use_of_visible_for_testing_member
       Get.dialog(hopCapNhatXemThu(e.value), barrierDismissible: false);
       for (var i = 0; i < 6; i++) {
         await tester.pump(const Duration(milliseconds: 100));
