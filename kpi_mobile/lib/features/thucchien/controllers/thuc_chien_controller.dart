@@ -12,6 +12,7 @@ import '../../home/controllers/kpi_controller.dart';
 import '../../../data/services/thuc_chien_service.dart';
 import '../../../data/services/upload_service.dart';
 import '../../../core/widgets/thong_bao.dart';
+import '../../../core/utils/dong_bo.dart';
 
 class ThucChienController extends GetxController {
   final AuthController authController = Get.find<AuthController>();
@@ -47,6 +48,26 @@ class ThucChienController extends GetxController {
       print('Lỗi fetch lịch sử thực chiến: $e');
     }
     return [];
+  }
+
+  /// Sale tự xóa báo cáo đang chờ duyệt (gửi nhầm, nhập sai, khách đổi lịch).
+  /// Trả về null khi xóa xong, hoặc câu lỗi để hiện cho người dùng — máy chủ
+  /// từ chối khi báo cáo vừa được duyệt / từ chối trong lúc đang xem.
+  Future<String?> xoaBaoCao(int id) async {
+    try {
+      final res = await ThucChienService().xoaBaoCao(id);
+      if (res['status'] != 'SUCCESS') {
+        return res['message']?.toString() ?? 'Không xóa được báo cáo.';
+      }
+      // Tải lại danh sách ngay, không đợi tin đồng bộ từ máy chủ
+      DongBo.bao(DongBo.thucChien);
+      return null;
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map ? e.response?.data['message']?.toString() : null;
+      return msg ?? describeApiFailure(e, action: 'xóa').message;
+    } catch (e) {
+      return describeApiFailure(e, action: 'xóa').message;
+    }
   }
 
   @override

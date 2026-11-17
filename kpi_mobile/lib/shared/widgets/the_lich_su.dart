@@ -206,6 +206,10 @@ class TheLichSu extends StatelessWidget {
   /// Lý do Admin từ chối — hiện thành dòng đỏ khi [trangThai] là REJECTED.
   final String? lyDoTuChoi;
 
+  /// Có thì hiện nút "Xóa báo cáo" ở cuối thẻ (như "Hủy đơn" bên Xin vắng).
+  /// Màn gọi chỉ truyền khi báo cáo còn chờ duyệt — máy chủ cũng chặn ca khác.
+  final VoidCallback? onXoa;
+
   const TheLichSu({
     super.key,
     required this.anh,
@@ -217,57 +221,83 @@ class TheLichSu extends StatelessWidget {
     required this.trangThai,
     required this.onTap,
     this.lyDoTuChoi,
+    this.onXoa,
   });
 
   @override
   Widget build(BuildContext context) {
     final coAnh = anh != null && anh!.isNotEmpty;
+    final the = _noiDungThe(coAnh);
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: coAnh
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(anh!, width: 44, height: 44, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Icon(bieuTuong, color: _navy)),
-              )
-            : CircleAvatar(
-                backgroundColor: _navy.withValues(alpha: 0.08),
-                child: Icon(bieuTuong, color: _navy, size: 22),
-              ),
-        title: Text(tieuDe, maxLines: 2, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 3),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (phu != null && phu!.isNotEmpty)
-                Text(phu!, maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-              if (noiDung != null && noiDung!.isNotEmpty)
-                Text(noiDung!, maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
-              const SizedBox(height: 2),
-              Text('Nộp lúc ${gioTuIso(submittedAt)}',
-                  style: const TextStyle(fontSize: 12, color: _navy, fontWeight: FontWeight.w600)),
-              if (trangThai.toUpperCase() == 'REJECTED') DongLyDoTuChoi(lyDoTuChoi),
-            ],
-          ),
+      clipBehavior: Clip.antiAlias,
+      child: onXoa == null
+          ? the
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                the,
+                Padding(
+                  padding: const EdgeInsets.only(right: 8, bottom: 4),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: onXoa,
+                      icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.redAccent),
+                      label: const Text('Xóa báo cáo',
+                          style: TextStyle(fontSize: 12, color: Colors.redAccent)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _noiDungThe(bool coAnh) {
+    return ListTile(
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      leading: coAnh
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(anh!, width: 44, height: 44, fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Icon(bieuTuong, color: _navy)),
+            )
+          : CircleAvatar(
+              backgroundColor: _navy.withValues(alpha: 0.08),
+              child: Icon(bieuTuong, color: _navy, size: 22),
+            ),
+      title: Text(tieuDe, maxLines: 2, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 3),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (phu != null && phu!.isNotEmpty)
+              Text(phu!, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+            if (noiDung != null && noiDung!.isNotEmpty)
+              Text(noiDung!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
+            const SizedBox(height: 2),
+            Text('Nộp lúc ${gioTuIso(submittedAt)}',
+                style: const TextStyle(fontSize: 12, color: _navy, fontWeight: FontWeight.w600)),
+            if (trangThai.toUpperCase() == 'REJECTED') DongLyDoTuChoi(lyDoTuChoi),
+          ],
         ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: statusColor(trangThai).withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(statusLabel(trangThai),
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor(trangThai))),
+      ),
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: statusColor(trangThai).withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(8),
         ),
+        child: Text(statusLabel(trangThai),
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor(trangThai))),
       ),
     );
   }

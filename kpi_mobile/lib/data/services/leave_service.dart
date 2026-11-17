@@ -2,7 +2,8 @@ import '../../core/network/api_client.dart';
 
 /// Đơn xin vắng — nhân sự gửi trên app, Admin duyệt trên WebAdmin.
 ///
-/// Đơn được duyệt: ngày đó tính là vắng có phép (−10đ KPI).
+/// Đơn được duyệt: ngày đó tính là vắng có phép — xin từ hôm trước thì không
+/// trừ điểm, gửi ngay trong ngày nghỉ thì −10đ KPI (điểm thật lấy từ kpiPoints).
 /// Không gửi đơn mà cũng không chấm công: hệ thống tự chấm vắng không phép (−15đ).
 class LeaveService {
   Future<Map<String, dynamic>> submit({

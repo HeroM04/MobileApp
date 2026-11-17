@@ -10,8 +10,9 @@ import '../../../shared/widgets/the_lich_su.dart';
 /// Tab "XIN VẮNG" trong màn hình Điểm danh.
 ///
 /// Nhân sự chọn ngày nghỉ + nhập lý do rồi gửi. Admin duyệt trên WebAdmin thì
-/// ngày đó là vắng có phép (−10đ). Không gửi đơn mà cũng không chấm công thì
-/// cuối ngày hệ thống tự chấm vắng không phép (−15đ).
+/// ngày đó là vắng có phép: xin từ hôm trước thì không trừ điểm, gửi ngay trong
+/// ngày nghỉ thì −10đ. Không gửi đơn mà cũng không chấm công thì cuối ngày hệ
+/// thống tự chấm vắng không phép (−15đ).
 class LeaveRequestTab extends StatefulWidget {
   const LeaveRequestTab({super.key});
 
@@ -159,7 +160,8 @@ class _LeaveRequestTabState extends State<LeaveRequestTab> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _navy)),
           const SizedBox(height: 6),
           const Text(
-            'Gửi trước để Admin xét duyệt. Đơn được duyệt tính là vắng có phép (−10đ KPI). '
+            'Xin từ hôm trước ngày nghỉ: được duyệt thì không trừ điểm. '
+            'Gửi ngay trong ngày nghỉ: được duyệt vẫn trừ 10đ KPI. '
             'Không gửi đơn mà cũng không chấm công sẽ bị tính vắng không phép (−15đ). '
             'Thứ Bảy vẫn ghi vắng như ngày thường nhưng không trừ điểm.',
             style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),

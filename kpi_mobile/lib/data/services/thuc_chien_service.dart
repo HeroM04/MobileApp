@@ -10,4 +10,10 @@ class ThucChienService {
     final response = await ApiClient.dio.get('/field-battle/my-battles');
     return response.data;
   }
+
+  /// Tự xóa báo cáo của mình — máy chủ chỉ cho khi báo cáo còn chờ duyệt.
+  Future<Map<String, dynamic>> xoaBaoCao(int id) async {
+    final response = await ApiClient.dio.delete('/field-battle/my-battles/$id');
+    return response.data;
+  }
 }

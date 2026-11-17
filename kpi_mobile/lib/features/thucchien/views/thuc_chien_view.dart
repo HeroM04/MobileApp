@@ -423,6 +423,35 @@ class _ThucChienViewState extends State<ThucChienView> {
     );
   }
 
+  /// Hỏi lại trước khi xóa — xóa rồi là mất cả ảnh lẫn nội dung, không lấy lại được.
+  Future<void> _xacNhanXoa(int id, String tenBaoCao) async {
+    final dongY = await Get.dialog<bool>(AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Xóa báo cáo này?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+      content: Text(
+        'Báo cáo "$tenBaoCao" đang chờ duyệt nên chưa được cộng điểm. '
+        'Xóa xong không khôi phục được; nếu cần thì gửi lại báo cáo mới.',
+        style: const TextStyle(fontSize: 13.5, height: 1.4),
+      ),
+      actions: [
+        TextButton(onPressed: () => Get.back(result: false), child: const Text('Không')),
+        TextButton(
+          onPressed: () => Get.back(result: true),
+          child: const Text('Xóa', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+        ),
+      ],
+    ));
+    if (dongY != true) return;
+
+    final loi = await controller.xoaBaoCao(id);
+    if (loi == null) {
+      snack('Đã xóa báo cáo', 'Báo cáo thực chiến đã được xóa.',
+          backgroundColor: Colors.green, colorText: Colors.white);
+    } else {
+      snack('Không xóa được', loi, backgroundColor: Colors.redAccent, colorText: Colors.white);
+    }
+  }
+
   Widget _buildHistoryTab() {
     return HistoryDateListView(
       onFetchHistory: (date) => controller.fetchHistory(date),
@@ -445,6 +474,10 @@ class _ThucChienViewState extends State<ThucChienView> {
           submittedAt: item['submittedAt'],
           trangThai: status,
           lyDoTuChoi: lyDoTuChoiCua(item),
+          // Chỉ báo cáo còn chờ duyệt mới tự xóa được (chưa cộng điểm)
+          onXoa: status == 'PENDING' && item['id'] is int
+              ? () => _xacNhanXoa(item['id'] as int, khach.isEmpty ? loai.toLowerCase() : '$loai · $khach')
+              : null,
           onTap: () => xemChiTietLichSu(
             tieuDe: 'Báo cáo thực chiến',
             lyDoTuChoi: lyDoTuChoiCua(item),
