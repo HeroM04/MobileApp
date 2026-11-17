@@ -6,6 +6,7 @@ import 'training_detail_view.dart';
 import 'qr_token_display.dart';
 import 'dao_tao_1_on_1_view.dart';
 import 'training_archive_view.dart';
+import 'the_buoi_hoc.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
 import '../../../shared/widgets/the_lich_su.dart';
 import '../../../data/services/lich_su_thang.dart';
@@ -369,46 +370,18 @@ class _DaoTaoViewState extends State<DaoTaoView> {
     );
   }
 
+  /// Buổi đã được tính điểm danh + ghi chú vắng (chờ duyệt / bị từ chối).
   Widget _lichSuBuoiHoc() {
     return HistoryDateListView(
       key: const ValueKey('lich-su-buoi-hoc'),
       onFetchHistory: (date) => controller.fetchHistory(date),
-      onFetchMonth: (month) => taiLichSuThang('/training-sessions/my-trainings', month),
-      thoiDiemCua: (item) => item['attendedAt']?.toString(),
+      onFetchMonth: (month) =>
+          taiLichSuThang('/training-sessions/my-trainings', month, them: {'kemGhiChu': true}),
+      thoiDiemCua: thoiDiemBuoiHoc,
       emptyMessageThang: 'Không có buổi đào tạo nào trong tháng này.',
       loaiDongBo: DongBo.daoTao,
       emptyMessage: 'Không có buổi đào tạo nào trong ngày này.',
-      itemBuilder: (item, index) {
-        final attendedAt = item['attendedAt'];
-        final dateStr = formatIsoDate(attendedAt?.toString());
-        final session = item['session'] as Map<String, dynamic>? ?? {};
-        final sessionTitle = session['title'] ?? item['sessionTitle'] ?? 'Buổi đào tạo';
-        final presenter = session['presenter'] ?? item['presenter'] ?? '';
-
-        return Card(
-          elevation: 2,
-          margin: const EdgeInsets.only(bottom: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: CircleAvatar(
-              backgroundColor: const Color(0xFF0F2C59).withOpacity(0.08),
-              child: const Icon(Icons.school_rounded, color: Color(0xFF0F2C59), size: 22),
-            ),
-            title: Text(sessionTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (presenter.isNotEmpty)
-                  Text('Giảng viên: $presenter', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                Text('Ngày tham gia: $dateStr',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF0F2C59), fontWeight: FontWeight.w600)),
-              ],
-            ),
-            trailing: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 22),
-          ),
-        );
-      },
+      itemBuilder: (item, index) => TheBuoiHoc(item: item),
     );
   }
 
@@ -499,7 +472,7 @@ class _DaoTaoViewState extends State<DaoTaoView> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    "Hãy lựa chọn phòng đào tạo đang diễn ra bên dưới để xem thông tin chi tiết, quét mã QR để điểm danh. Dự đủ các buổi bắt buộc trong tuần được +15 điểm (chốt sau 23:00 Chủ nhật).",
+                    "Hãy lựa chọn phòng đào tạo đang diễn ra bên dưới để xem thông tin chi tiết, quét mã QR để điểm danh. Dự đủ các buổi bắt buộc trong tuần được +15 điểm (chốt sau 23:00 Chủ nhật). Không dự được (đã học rồi, bận việc) thì mở buổi học, gửi ghi chú để Admin duyệt, kể cả khi lớp đã bắt đầu.",
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 11,

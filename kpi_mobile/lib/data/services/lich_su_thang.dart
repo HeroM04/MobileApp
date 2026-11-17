@@ -5,8 +5,10 @@ import '../../core/network/api_client.dart';
 /// tạo, phản hồi) cùng nhận ?month=.
 ///
 /// Lỗi thì ném ra để màn hình biết là lỗi chứ không phải tháng trống.
-Future<List<Map<String, dynamic>>> taiLichSuThang(String duongDan, String thang) async {
-  final res = await ApiClient.dio.get(duongDan, queryParameters: {'month': thang});
+/// [them]: tham số gửi thêm, ví dụ `{'kemGhiChu': true}` cho lịch sử đào tạo.
+Future<List<Map<String, dynamic>>> taiLichSuThang(String duongDan, String thang,
+    {Map<String, dynamic>? them}) async {
+  final res = await ApiClient.dio.get(duongDan, queryParameters: {'month': thang, ...?them});
   final data = res.data is Map ? res.data['data'] : null;
   return data is List ? List<Map<String, dynamic>>.from(data) : [];
 }

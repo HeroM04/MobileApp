@@ -24,8 +24,8 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
   bool _isScanning = false;
   bool _isEnding = false;
 
-  /// Câu trả lời tham gia / xin vắng của mình cho buổi đào tạo dự án này.
-  /// null nghĩa là chưa trả lời.
+  /// Câu trả lời của mình cho buổi này: tham gia (đào tạo dự án) hoặc ghi chú
+  /// vắng (mọi loại buổi). null nghĩa là chưa trả lời.
   Map<String, dynamic>? _traLoi;
   bool _dangGuiTraLoi = false;
 
@@ -34,8 +34,15 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadLatestData();
-      if (widget.room.laDaoTaoDuAn) _napTraLoi();
+      _napTraLoi();
     });
+  }
+
+  /// Mình đã có tên trong danh sách điểm danh của buổi này chưa.
+  bool _daDiemDanh() {
+    final uid = authController.currentUser['userId']?.toString();
+    if (uid == null) return false;
+    return widget.room.participants.any((p) => p['userId']?.toString() == uid);
   }
 
   Future<void> _napTraLoi() async {
@@ -81,36 +88,72 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
     }
   }
 
+  /// Gửi (hoặc sửa) ghi chú vắng. Đào tạo dự án gọi là "lý do không tham gia".
+  ///
+  /// Gửi được cả khi lớp đã bắt đầu hay đã kết thúc: lớp thường được tạo sát
+  /// giờ học, lúc nhân sự mở app thì buổi đã "Đang diễn ra".
   Future<void> _chonKhongThamGia() async {
-    final lyDoController = TextEditingController();
+    final duAn = widget.room.laDaoTaoDuAn;
+    final lyDoController = TextEditingController(
+        text: _traLoi?['choice']?.toString() == 'DECLINE' && _traLoi?['status']?.toString() == 'PENDING'
+            ? (_traLoi?['reason']?.toString() ?? '')
+            : '');
+    final goiY = <String>[
+      'Đã học nội dung này rồi',
+      if (duAn) 'Không bán dự án này',
+      'Đang đi gặp khách',
+      'Nghỉ phép hôm nay',
+    ];
     final lyDo = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Lý do không tham gia',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF0F2C59))),
-        content: Column(
+        title: Text(duAn ? 'Lý do không tham gia' : 'Ghi chú vắng buổi học',
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF0F2C59))),
+        content: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Đây là buổi đào tạo dự án, mặc định mọi người đều phải tham gia. '
-              'Ghi rõ lý do để Admin xem xét.',
-              style: TextStyle(fontSize: 12.5, height: 1.4, color: Color(0xFF64748B)),
+            Text(
+              duAn
+                  ? 'Đây là buổi đào tạo dự án, mặc định mọi người đều phải tham gia. '
+                      'Ghi rõ lý do để Admin xem xét.'
+                  : 'Admin sẽ duyệt ghi chú này. Được duyệt thì bạn vẫn được tính điểm danh buổi này.',
+              style: const TextStyle(fontSize: 12.5, height: 1.4, color: Color(0xFF64748B)),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final g in goiY)
+                  ActionChip(
+                    label: Text(g, style: const TextStyle(fontSize: 12)),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () {
+                      lyDoController.text = g;
+                      lyDoController.selection = TextSelection.collapsed(offset: g.length);
+                    },
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: lyDoController,
               maxLines: 3,
               maxLength: 500,
               autofocus: true,
               decoration: InputDecoration(
-                hintText: 'Ví dụ: Tôi không bán dự án này, đang phụ trách dự án khác',
+                hintText: duAn
+                    ? 'Ví dụ: Tôi không bán dự án này, đang phụ trách dự án khác'
+                    : 'Ví dụ: Em đã học buổi này ngày 04/11',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 contentPadding: const EdgeInsets.all(12),
               ),
             ),
           ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Hủy')),
@@ -137,7 +180,7 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
     try {
       await TrainingService().xinVangDaoTao(widget.room.id, lyDo);
       await _napTraLoi();
-      snack('Đã gửi lý do', 'Admin sẽ xem xét. Được duyệt thì bạn vẫn được tính điểm danh.',
+      snack(duAn ? 'Đã gửi lý do' : 'Đã gửi ghi chú', 'Admin sẽ xem xét. Được duyệt thì bạn vẫn được tính điểm danh.',
           backgroundColor: const Color(0xFFD4AF37), colorText: const Color(0xFF0F2C59),
           duration: const Duration(seconds: 4));
     } catch (e) {
@@ -150,8 +193,13 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
     }
   }
 
-  /// Khối đăng ký tham gia — chỉ hiện với buổi đào tạo DỰ ÁN.
+  /// Khối trả lời của nhân sự, đặt trên cùng màn hình buổi học:
+  /// - Đào tạo dự án: Tham gia / Không tham gia (kèm lý do).
+  /// - Mọi buổi khác: nút gửi ghi chú vắng (đã học rồi, bận việc…) cho Admin duyệt.
+  /// Hiện cả khi lớp đang diễn ra hay đã kết thúc — trước đây buổi kỹ năng không
+  /// có chỗ ghi chú, mà lớp thì thường được tạo sát giờ học.
   Widget _khoiDangKy() {
+    final duAn = widget.room.laDaoTaoDuAn;
     final choice = _traLoi?['choice']?.toString();
     final status = _traLoi?['status']?.toString();
 
@@ -182,15 +230,21 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
             Icon(duyet ? Icons.verified_rounded : (tuChoi ? Icons.cancel_rounded : Icons.hourglass_top_rounded),
                 size: 16, color: duyet ? const Color(0xFF15803D) : (tuChoi ? const Color(0xFFB91C1C) : const Color(0xFF9A3412))),
             const SizedBox(width: 6),
-            Text(
-              duyet ? 'Đã được duyệt vắng' : (tuChoi ? 'Lý do bị từ chối' : 'Chờ Admin duyệt lý do'),
-              style: TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w800,
-                  color: duyet ? const Color(0xFF15803D) : (tuChoi ? const Color(0xFFB91C1C) : const Color(0xFF9A3412))),
+            Flexible(
+              child: Text(
+                duyet
+                    ? 'Đã được duyệt vắng'
+                    : (tuChoi
+                        ? (duAn ? 'Lý do bị từ chối' : 'Ghi chú bị từ chối')
+                        : (duAn ? 'Chờ Admin duyệt lý do' : 'Chờ Admin duyệt ghi chú')),
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w800,
+                    color: duyet ? const Color(0xFF15803D) : (tuChoi ? const Color(0xFFB91C1C) : const Color(0xFF9A3412))),
+              ),
             ),
           ]),
           const SizedBox(height: 8),
-          Text('Lý do bạn gửi: “${_traLoi?['reason'] ?? ''}”',
+          Text('${duAn ? 'Lý do' : 'Ghi chú'} bạn gửi: “${_traLoi?['reason'] ?? ''}”',
               style: const TextStyle(fontSize: 12.5, height: 1.4, color: Color(0xFF475569))),
           if (_traLoi?['reviewNote'] != null && '${_traLoi?['reviewNote']}'.isNotEmpty) ...[
             const SizedBox(height: 6),
@@ -212,10 +266,56 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: _dangGuiTraLoi ? null : _chonKhongThamGia,
-                child: const Text('Gửi lại lý do khác'),
+                child: Text(duAn ? 'Gửi lại lý do khác' : 'Gửi lại ghi chú khác'),
               ),
             ),
           ],
+          if (!duyet && !tuChoi)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: _dangGuiTraLoi ? null : _chonKhongThamGia,
+                icon: const Icon(Icons.edit_outlined, size: 16),
+                label: Text(duAn ? 'Sửa lý do' : 'Sửa ghi chú'),
+              ),
+            ),
+        ],
+      );
+    }
+
+    // Buổi kỹ năng (và các buổi không phải dự án): chỉ cần chỗ gửi ghi chú vắng
+    if (!duAn) {
+      return khung(
+        vien: const Color(0xFFE2E8F0),
+        nen: Colors.white,
+        con: [
+          const Row(children: [
+            Icon(Icons.edit_note_rounded, size: 18, color: Color(0xFF0F2C59)),
+            SizedBox(width: 6),
+            Text('Không dự được buổi này?',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF0F2C59))),
+          ]),
+          const SizedBox(height: 4),
+          const Text(
+            'Đã học nội dung này rồi hoặc có việc bận: gửi ghi chú để Admin duyệt. '
+            'Được duyệt thì vẫn được tính điểm danh. Gửi được cả khi lớp đã bắt đầu.',
+            style: TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _dangGuiTraLoi ? null : _chonKhongThamGia,
+              icon: const Icon(Icons.send_rounded, size: 16),
+              label: const Text('Gửi ghi chú cho Admin'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF0F2C59),
+                side: const BorderSide(color: Color(0xFF94A3B8)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
         ],
       );
     }
@@ -609,9 +709,14 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Đào tạo dự án: hỏi tham gia hay xin vắng, đặt trước cả thông tin
-            // buổi học vì đây là việc nhân sự cần làm ngay khi mở màn hình.
-            if (widget.room.laDaoTaoDuAn && !isAdminOrManager) _khoiDangKy(),
+            // Tham gia / ghi chú vắng: đặt trước cả thông tin buổi học vì đây
+            // là việc nhân sự cần làm ngay khi mở màn hình. Không phụ thuộc lớp
+            // sắp / đang / đã diễn ra. Đã điểm danh rồi thì thôi (trừ khi đang có
+            // ghi chú — vẫn hiện để biết kết quả duyệt).
+            if (!isAdminOrManager && widget.room.status != 'CANCELLED')
+              Obx(() => (_traLoi?['choice']?.toString() == 'DECLINE' || !_daDiemDanh())
+                  ? _khoiDangKy()
+                  : const SizedBox.shrink()),
 
             // Thông tin chi tiết phòng đào tạo
             Container(

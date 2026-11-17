@@ -152,9 +152,12 @@ class TrainingController extends GetxController {
     super.onClose();
   }
 
+  /// Lịch sử buổi học trong một ngày, kèm cả ghi chú vắng chưa được tính
+  /// (chờ duyệt / bị từ chối) — máy chủ chỉ trả các dòng đó khi có kemGhiChu.
   Future<List<Map<String, dynamic>>> fetchHistory(String date) async {
     try {
-      final response = await ApiClient.dio.get('/training-sessions/my-trainings', queryParameters: {'date': date});
+      final response = await ApiClient.dio.get('/training-sessions/my-trainings',
+          queryParameters: {'date': date, 'kemGhiChu': true});
       if (response.data != null && response.data['data'] != null) {
         return List<Map<String, dynamic>>.from(response.data['data']);
       }
