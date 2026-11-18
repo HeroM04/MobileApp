@@ -55,7 +55,7 @@ void snack(
 /// tự xử lý được (quyền, GPS, nhập sai) màu cam; lỗi mạng / hệ thống màu đỏ.
 /// [viec] là động từ của thao tác đang làm: "chấm công", "chụp ảnh"...
 void baoLoi(Object e, {String viec = 'gửi'}) {
-  final loi = describeApiFailure(e, action: viec);
+  final loi = e is ApiFailure ? e : describeApiFailure(e, action: viec);
   // Lời từ chối của máy chủ ("Bạn đã chấm công hôm nay") đi với tiêu đề
   // "Không chấm công được" đọc tự nhiên hơn "Thông tin chưa hợp lệ".
   snack(loi.kind == ApiFailureKind.user ? 'Không $viec được' : loi.title, loi.message,

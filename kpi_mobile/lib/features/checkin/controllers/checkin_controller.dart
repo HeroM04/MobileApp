@@ -8,8 +8,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:image/image.dart' as img;
 import 'dart:math' as math;
-import 'package:kpi_mobile/data/services/checkin_service.dart';
-import 'package:kpi_mobile/data/services/upload_service.dart';
+import 'package:kpi_mobile/data/services/hang_cho_cham_cong.dart';
+import '../../../core/utils/dong_ho_may.dart';
 import 'package:kpi_mobile/data/services/lich_su_thang.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../home/controllers/kpi_controller.dart';
@@ -34,7 +34,6 @@ class CheckinController extends GetxController {
   String currentAddress = "";
 
   final ImagePicker _picker = ImagePicker();
-  final CheckinService _service = CheckinService();
 
   int get currentUserId {
     if (Get.isRegistered<AuthController>()) {
@@ -62,6 +61,15 @@ class CheckinController extends GetxController {
   
   /// Bước 1: Gọi hàm chụp ảnh (Chỉ Camera)
   Future<void> takePhoto() async {
+    // Lần bấm trước (cùng loại vào / ra) còn đang chờ gửi vì mạng: không chụp
+    // lượt mới — chụp lại là thành giờ mới, mất giờ bấm cũ.
+    final dangCho = HangChoChamCong.instance?.luotChoCua(selectedActionType.value);
+    if (dangCho != null) {
+      snack("Lượt ${dangCho.moTa} đang chờ gửi",
+          "App đang tự gửi lại lượt này, không cần chụp lại. Có mạng rồi thì bấm \"Gửi lại ngay\" ở trên.",
+          backgroundColor: Colors.orange.shade800, colorText: Colors.white, duration: const Duration(seconds: 6));
+      return;
+    }
     try {
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
@@ -73,6 +81,8 @@ class CheckinController extends GetxController {
 
       if (photo != null) {
         isLoading.value = true;
+        // Giờ BẤM = lúc chụp xong, trước khi dò khuôn mặt, GPS, mạng
+        await _ghiLucBam();
         // Xoay ảnh về đúng chiều trước khi làm gì khác. Ảnh camera trước hay bị
         // ghi kèm thẻ xoay trong EXIF thay vì xoay thật pixel; khi image_picker
         // nén lại (imageQuality) thẻ đó rơi mất, ảnh thành nằm ngang và ML Kit
@@ -422,6 +432,7 @@ class CheckinController extends GetxController {
   Future<void> handleCheckOut(String note) async {
     try {
       isLoading.value = true;
+      await _ghiLucBam();
       Position? position = await _getCurrentLocation();
       if (position == null) { isLoading.value = false; return; }
       
@@ -453,7 +464,27 @@ class CheckinController extends GetxController {
     }
   }
 
+  /// Lúc chụp ảnh chấm công — giờ BẤM, máy chủ tính đúng giờ / muộn theo mốc này
+  /// dù mạng kẹt vài phút sau mới gửi được (xem [HangChoChamCong]).
+  DateTime? _lucBam;
+  MocMay? _mocBam;
+
+  Future<void> _ghiLucBam() async {
+    _lucBam = DateTime.now();
+    _mocBam = await DongHoMay.doc();
+  }
+
+  void _xongLuot() {
+    isOutOfRange.value = false;
+    selectedImage.value = null;
+    _lucBam = null;
+    _mocBam = null;
+  }
+
   /// Gửi dữ liệu lên API
+  ///
+  /// Không gửi được vì mạng / máy chủ thì lần bấm này được giữ trên máy và app
+  /// tự gửi lại — nhân sự không phải chụp lại, giờ chấm công vẫn là giờ bấm.
   Future<void> performCheckin(String note) async {
     if (selectedImage.value == null) {
       snack("Lỗi", "Chưa có ảnh chân dung hợp lệ!");
@@ -462,39 +493,52 @@ class CheckinController extends GetxController {
 
     try {
       isLoading.value = true;
-      String? realImageUrl = "";
+      final HangChoChamCong hangCho =
+          HangChoChamCong.instance ?? Get.put<HangChoChamCong>(HangChoChamCong(), permanent: true);
+      if (_lucBam == null) await _ghiLucBam();
+      final luot = LuotChamCong(
+        maLuot: LuotChamCong.taoMa(currentUserId),
+        userId: currentUserId,
+        actionType: selectedActionType.value,
+        lucBam: _lucBam!,
+        mocBam: _mocBam,
+        lat: currentLat,
+        lng: currentLng,
+        address: currentAddress,
+        note: note,
+        anhPath: selectedImage.value!.path,
+      );
 
-      // Nếu có ảnh (Check-in), thì upload
-      if (selectedImage.value != null) {
-        final uploadService = UploadService();
-        realImageUrl = await uploadService.uploadFile(selectedImage.value!);
-        if (realImageUrl == null) throw "Không thể upload ảnh lên máy chủ";
+      final kq = await hangCho.guiNgay(luot);
+      switch (kq.trangThai) {
+        case TrangThaiGui.daNhan:
+          _xongLuot();
+          if (Get.isRegistered<KpiController>()) {
+            Get.find<KpiController>().fetchKpiData();
+          }
+          final cham = DateTime.now().difference(luot.lucBam).inMinutes;
+          if (kq.choDuyet) {
+            snack("Đã gửi chấm công ${luot.moTa}",
+                kq.phanHoi?['message']?.toString() ?? "Yêu cầu đang chờ duyệt.",
+                backgroundColor: Colors.orange.shade800, colorText: Colors.white, duration: const Duration(seconds: 6));
+          } else {
+            snack("Thành công",
+                "${luot.laVao ? 'Check-in' : 'Check-out'} thành công!"
+                    "${cham >= 1 ? ' Gửi chậm $cham phút do mạng — vẫn tính theo giờ bấm.' : ''}",
+                backgroundColor: Colors.green, colorText: Colors.white);
+          }
+        case TrangThaiGui.choGuiLai:
+          // Đã giữ lần bấm này trên máy — không bắt chụp lại
+          _xongLuot();
+          snack("Đã ghi nhận chấm công ${luot.moTa}",
+              "Chưa gửi được: ${kq.loi!.title.toLowerCase()}. App sẽ tự gửi lại khi có mạng — "
+                  "không cần chụp lại. Gửi được trong 30 phút vẫn tính đúng giờ bấm.",
+              backgroundColor: Colors.orange.shade800, colorText: Colors.white,
+              duration: const Duration(seconds: 10));
+        case TrangThaiGui.biTuChoi:
+          // Máy chủ từ chối (vd. thiếu lý do ngoài văn phòng): giữ ảnh để sửa rồi gửi lại
+          baoLoi(kq.loi!, viec: 'chấm công');
       }
-
-      final response = await _service.submitCheckin({
-        "latitude": currentLat,
-        "longitude": currentLng,
-        "address": currentAddress,
-        "photoUrl": realImageUrl,
-        "note": note,
-        "actionType": selectedActionType.value,
-      });
-
-      isOutOfRange.value = false;
-      selectedImage.value = null; 
-      
-      if (Get.isRegistered<KpiController>()) {
-        Get.find<KpiController>().fetchKpiData();
-      }
-
-      String successMsg = selectedActionType.value == 'CHECK_OUT' ? "Check-out thành công!" : "Check-in thành công!";
-      if (response != null && response['data'] != null) {
-         if (response['data']['status'] == 'PENDING') {
-           successMsg += " Yêu cầu đang chờ duyệt.";
-         }
-      }
-      snack("Thành công", successMsg, backgroundColor: Colors.green, colorText: Colors.white);
-      
     } catch (e) {
       // Trước đây in thẳng lỗi kỹ thuật ("DioException [connection timeout]...")
       // — nhân sự đọc không hiểu, tưởng app hỏng. Dịch sang lời nói rõ do mạng

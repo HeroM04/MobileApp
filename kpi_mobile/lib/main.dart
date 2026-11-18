@@ -8,6 +8,7 @@ import 'features/auth/views/login_view.dart';
 import 'features/shell/views/shell_view.dart';
 import 'features/thucchien/controllers/thuc_chien_controller.dart';
 import 'data/services/websocket_service.dart';
+import 'data/services/hang_cho_cham_cong.dart';
 import 'core/utils/cap_nhat_app.dart';
 import 'core/theme/giao_dien.dart';
 
@@ -33,6 +34,9 @@ void main() async {
   // Đợi kiểm tra trạng thái login trước khi khởi chạy giao diện
   await authController.checkLoginStatus();
 
+  // Lượt chấm công chưa gửi được vì mạng (giữ trên máy): mở app là gửi lại
+  Get.put(HangChoChamCong(), permanent: true);
+
   runApp(const MyApp());
 }
 
@@ -50,11 +54,13 @@ class _AppLifecycle extends WidgetsBindingObserver {
         || state == AppLifecycleState.hidden;
 
     if (rongNen) {
+      HangChoChamCong.instance?.tamDung();
       WebSocketService().disconnect();
       if (Get.isRegistered<ThucChienController>()) {
         Get.find<ThucChienController>().stopAutoSync();
       }
     } else if (state == AppLifecycleState.resumed) {
+      HangChoChamCong.instance?.tiepTuc();
       if (Get.isRegistered<AuthController>()) {
         final auth = Get.find<AuthController>();
         final uid = auth.currentUser['userId'];

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/checkin_controller.dart';
+import 'the_luot_cho_gui.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../../shared/widgets/history_date_list_view.dart';
 import '../../../shared/widgets/the_lich_su.dart';
@@ -364,6 +365,9 @@ class CheckinView extends StatelessWidget {
               ],
             ),
           )),
+
+          // ── LƯỢT CHẤM CÔNG CHƯA GỬI ĐƯỢC VÌ MẠNG ──────────────────────
+          const TheLuotChoGui(),
 
           // ── KHU VỰC ẢNH CHÂN DUNG ────────────────────────────────────
           Obx(() => GestureDetector(
