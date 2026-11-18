@@ -14,7 +14,7 @@ import 'package:kpi_mobile/data/services/lich_su_thang.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../home/controllers/kpi_controller.dart';
 import '../../../core/network/api_client.dart';
-import 'package:dio/dio.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/thong_bao.dart';
 import '../../../core/utils/quyen_anh.dart';
 import '../../../core/utils/thu_nho_anh.dart';
@@ -496,14 +496,14 @@ class CheckinController extends GetxController {
       snack("Thành công", successMsg, backgroundColor: Colors.green, colorText: Colors.white);
       
     } catch (e) {
-      String errorMessage = "Không thể thực hiện: $e";
-      if (e is DioException && e.response != null && e.response?.data != null) {
-        final resData = e.response?.data;
-        if (resData is Map && resData['message'] != null) {
-          errorMessage = resData['message'];
-        }
-      }
-      snack("Lỗi", errorMessage, backgroundColor: Colors.redAccent, colorText: Colors.white);
+      // Trước đây in thẳng lỗi kỹ thuật ("DioException [connection timeout]...")
+      // — nhân sự đọc không hiểu, tưởng app hỏng. Dịch sang lời nói rõ do mạng
+      // của máy hay do máy chủ; lời máy chủ (vd. ngoài giờ, đã chấm rồi) giữ nguyên.
+      final loi = describeApiFailure(e, action: 'chấm công');
+      // Lời từ chối của máy chủ (4xx) giữ tiêu đề "Lỗi" như cũ — "Thông tin chưa
+      // hợp lệ" đặt trên "Bạn đã chấm công hôm nay" thì đọc lạ.
+      snack(loi.kind == ApiFailureKind.user ? 'Lỗi' : loi.title, loi.message,
+          backgroundColor: Colors.redAccent, colorText: Colors.white);
     } finally {
       isLoading.value = false;
     }
