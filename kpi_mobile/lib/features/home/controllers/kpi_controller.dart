@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import '../../../core/utils/dong_bo.dart';
 import '../../../data/services/kpi_service.dart';
@@ -21,12 +23,45 @@ class KpiController extends GetxController {
   var departmentMembers = <Map<String, dynamic>>[].obs;
   var isLoadingDepartment = false.obs;
 
+  /// Đã nhận được điểm từ máy chủ ít nhất một lần chưa.
+  ///
+  /// Trước đây tải hỏng (mạng yếu, không kết nối được máy chủ) thì lỗi bị nuốt,
+  /// các số giữ nguyên giá trị khởi tạo 0 → Trang chủ hiện "0 / 100 điểm — Cần
+  /// cố gắng thêm", trợ lý còn báo "KPI đang ở mức thấp". Nhân sự tưởng mất hết
+  /// điểm. Chưa có số liệu thì màn hình phải nói là chưa tải được, không hiện 0.
+  var daCoSoLieu = false.obs;
+
+  /// Lần tải gần nhất bị hỏng.
+  var taiLoi = false.obs;
+  var dangTai = false.obs;
+
+  /// Tải hỏng thì tự thử lại vài lần, cách nhau dần ra — sóng chập chờn thường
+  /// tự hết sau ít phút, không bắt nhân sự phải biết kéo xuống để tải lại.
+  static const List<Duration> _henThuLai = [Duration(seconds: 15), Duration(seconds: 45), Duration(minutes: 2)];
+  int _lanThuLai = 0;
+  Timer? _hen;
+
   final _kpiService = KpiService();
   void Function()? _huyDongBo;
+
+  /// Chỉ tiêu tháng = số thứ Hai của THÁNG KPI × 100. Tháng KPI là tháng của
+  /// thứ Hai đầu tuần (như máy chủ): 1–4/10/2026 vẫn là KPI tháng 9, nên lấy
+  /// tháng của thứ Hai tuần này chứ không lấy tháng dương lịch.
+  static double chiTieuThang(DateTime homNay) {
+    final thuHai = DateTime(homNay.year, homNay.month, homNay.day - (homNay.weekday - 1));
+    final soNgay = DateTime(thuHai.year, thuHai.month + 1, 0).day;
+    var soThuHai = 0;
+    for (var i = 1; i <= soNgay; i++) {
+      if (DateTime(thuHai.year, thuHai.month, i).weekday == DateTime.monday) soThuHai++;
+    }
+    return soThuHai * 100.0;
+  }
 
   @override
   void onInit() {
     super.onInit();
+    // Chỉ tiêu tính được ngay trên máy, không cần chờ máy chủ
+    kpiTarget.value = chiTieuThang(DateTime.now());
     fetchKpiData();
     // Điểm KPI đã có kênh /topic/kpi khi app đang mở; dòng này để khi mở lại
     // app từ nền (kênh có thể đã rớt, tin bị lỡ) điểm vẫn được tải lại.
@@ -41,30 +76,29 @@ class KpiController extends GetxController {
 
   @override
   void onClose() {
+    _hen?.cancel();
     _huyDongBo?.call();
     WebSocketService().disconnect();
     super.onClose();
   }
 
+  void _henTaiLai() {
+    _hen?.cancel();
+    if (_lanThuLai >= _henThuLai.length) return;
+    _hen = Timer(_henThuLai[_lanThuLai++], () {
+      if (!isClosed) fetchKpiData();
+    });
+  }
+
   Future<void> fetchKpiData() async {
+    var thanhCong = false;
+    dangTai.value = true;
     try {
       final response = await _kpiService.getMyKpiScore();
       if (response['status'] == 'SUCCESS') {
+        thanhCong = true;
         final kpi = response['data'] ?? {};
-        
-        // Chỉ tiêu tháng = số thứ Hai của THÁNG KPI × 100. Tháng KPI là tháng của
-        // thứ Hai đầu tuần (như máy chủ): 1–4/10/2026 vẫn là KPI tháng 9, nên
-        // lấy tháng của thứ Hai tuần này chứ không lấy tháng dương lịch.
-        final homNay = DateTime.now();
-        final thuHai = DateTime(homNay.year, homNay.month, homNay.day - (homNay.weekday - 1));
-        int mondays = 0;
-        int daysInMonth = DateTime(thuHai.year, thuHai.month + 1, 0).day;
-        for (int i = 1; i <= daysInMonth; i++) {
-          if (DateTime(thuHai.year, thuHai.month, i).weekday == DateTime.monday) {
-            mondays++;
-          }
-        }
-        kpiTarget.value = mondays * 100.0;
+        kpiTarget.value = chiTieuThang(DateTime.now());
 
         attendancePoints.value = (kpi['attendance'] as num?)?.toInt() ?? 0;
         fieldBattleCount.value = (kpi['meeting'] as num?)?.toInt() ?? 0;
@@ -79,6 +113,7 @@ class KpiController extends GetxController {
 
         if (rawWeeklyPoints > kpiWeeklyTarget.value) rawWeeklyPoints = kpiWeeklyTarget.value;
         kpiWeeklyPoints.value = rawWeeklyPoints;
+        daCoSoLieu.value = true;
       }
 
       // Lấy danh sách KPI phòng ban nếu là TRUONG_PHONG
@@ -92,7 +127,22 @@ class KpiController extends GetxController {
       }
     } catch (e) {
       print('Error fetching KPI data: $e');
+    } finally {
+      dangTai.value = false;
+      taiLoi.value = !thanhCong;
+      if (thanhCong) {
+        _lanThuLai = 0;
+        _hen?.cancel();
+      } else {
+        _henTaiLai();
+      }
     }
+  }
+
+  /// Máy chủ đẩy điểm mới qua kênh trực tiếp — cũng tính là đã có số liệu.
+  void daNhanDiemTrucTiep() {
+    daCoSoLieu.value = true;
+    taiLoi.value = false;
   }
 
   /// Gọi endpoint mới /kpi-scores/my-department.
@@ -128,7 +178,12 @@ class KpiController extends GetxController {
   }
 
   void reset() {
+    _hen?.cancel();
+    _lanThuLai = 0;
+    daCoSoLieu.value = false;
+    taiLoi.value = false;
     kpiPoints.value = 0.0;
+    kpiWeeklyPoints.value = 0.0;
     attendancePoints.value = 0;
     fieldBattleCount.value = 0;
     socialPostCount.value = 0;

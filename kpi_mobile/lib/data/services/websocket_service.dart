@@ -121,6 +121,7 @@ class WebSocketService {
                   rawWeekly = kpiController.kpiWeeklyTarget.value;
                 }
                 kpiController.kpiWeeklyPoints.value = rawWeekly;
+                kpiController.daNhanDiemTrucTiep();
 
                 if (oldTotal > 0) { // bỏ qua lần nạp dữ liệu đầu tiên
                   _baoDiemDoi(

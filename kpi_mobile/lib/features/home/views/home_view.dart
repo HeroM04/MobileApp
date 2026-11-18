@@ -131,6 +131,9 @@ class HomeView extends StatelessWidget {
   Widget _buildKpiOverviewCard() {
     return Column(
       children: [
+        Obx(() => kpiController.taiLoi.value
+            ? BaoChuaTaiDuocDiem(daCoSoLieu: kpiController.daCoSoLieu.value, onThuLai: kpiController.fetchKpiData)
+            : const SizedBox.shrink()),
         _buildSingleKpiCard("Điểm KPI tuần", kpiController.kpiWeeklyPoints, kpiController.kpiWeeklyTarget),
         const SizedBox(height: 16),
         _buildSingleKpiCard("Điểm KPI tháng", kpiController.kpiPoints, kpiController.kpiTarget),
@@ -142,8 +145,13 @@ class HomeView extends StatelessWidget {
     return Obx(() {
       final kpi = pointsObs.value;
       final target = targetObs.value;
-      final percent = (target > 0) ? (kpi / target).clamp(0.0, 1.0) : 0.0;
-      final percentStr = (percent * 100).toStringAsFixed(0);
+      // Chưa nhận được điểm thì hiện "—", không hiện 0 như thể đã mất hết điểm
+      final coSo = kpiController.daCoSoLieu.value;
+      final percent = (coSo && target > 0) ? (kpi / target).clamp(0.0, 1.0) : 0.0;
+      final percentStr = coSo ? "${(percent * 100).toStringAsFixed(0)}%" : "—";
+      final nhanTrangThai = !coSo
+          ? (kpiController.dangTai.value ? "Đang tải điểm…" : "Chưa tải được")
+          : (percent >= 1.0 ? "Đạt chỉ tiêu tối đa" : (percent >= 0.5 ? "Đang tiến độ tốt" : "Cần cố gắng thêm"));
 
       return Container(
         padding: const EdgeInsets.all(16),
@@ -181,7 +189,7 @@ class HomeView extends StatelessWidget {
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      "$percentStr%",
+                      percentStr,
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -210,7 +218,7 @@ class HomeView extends StatelessWidget {
                   Text.rich(
                     TextSpan(children: [
                       TextSpan(
-                        text: kpi.toStringAsFixed(0),
+                        text: coSo ? kpi.toStringAsFixed(0) : "—",
                         style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF0F2C59)),
                       ),
                       TextSpan(
@@ -227,7 +235,7 @@ class HomeView extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      percent >= 1.0 ? "Đạt chỉ tiêu tối đa" : (percent >= 0.5 ? "Đang tiến độ tốt" : "Cần cố gắng thêm"),
+                      nhanTrangThai,
                       style: const TextStyle(
                         color: Color(0xFF9A6B00),
                         fontSize: 11,
@@ -248,6 +256,9 @@ class HomeView extends StatelessWidget {
 
   Widget _buildAssistantNudgeCard() {
     return Obx(() {
+      // Chưa có điểm thì không nhận xét — trước đây tải hỏng (điểm = 0) trợ lý
+      // vẫn báo "KPI đang ở mức thấp" với người đang có 55 điểm.
+      if (!kpiController.daCoSoLieu.value) return const SizedBox.shrink();
       // So theo % chỉ tiêu THÁNG (số thứ Hai × 100), không so với số điểm cố
       // định: trước đây mới 100 điểm (1/4 chỉ tiêu 400) đã báo "hoàn thành 100%".
       final mucTieu = kpiController.kpiTarget.value;
@@ -771,6 +782,42 @@ class HomeView extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Dải báo trên thẻ KPI khi không tải được điểm.
+class BaoChuaTaiDuocDiem extends StatelessWidget {
+  /// Đã có số liệu từ lần tải trước (số đang hiện có thể chưa mới) hay chưa có gì.
+  final bool daCoSoLieu;
+  final Future<void> Function() onThuLai;
+  const BaoChuaTaiDuocDiem({super.key, required this.daCoSoLieu, required this.onThuLai});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFED7AA)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_off_rounded, size: 20, color: Color(0xFFC2410C)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              daCoSoLieu
+                  ? 'Chưa cập nhật được điểm mới — mạng đang yếu. Điểm của bạn không bị mất.'
+                  : 'Chưa tải được điểm KPI — mạng đang yếu hoặc chưa kết nối được máy chủ. Điểm của bạn không bị mất.',
+              style: const TextStyle(fontSize: 12.5, height: 1.35, color: Color(0xFF9A3412), fontWeight: FontWeight.w600),
+            ),
+          ),
+          TextButton(onPressed: onThuLai, child: const Text('Thử lại')),
+        ],
+      ),
     );
   }
 }

@@ -83,9 +83,11 @@ class ApiClient {
   static Dio _buildDio() {
     final dioInstance = Dio(BaseOptions(
       baseUrl: baseUrl,
-      // Bắt tay với máy chủ vốn nhanh; mất mạng thật là hỏng ngay ở bước này
-      // nên để ngắn để báo lỗi sớm cho người dùng.
-      connectTimeout: const Duration(seconds: 20),
+      // Bắt tay với máy chủ vốn nhanh (dưới 1 giây, kể cả lúc máy chủ Render
+      // đang ngủ — bắt tay là với Cloudflare đứng trước). Quá 12 giây là đường
+      // truyền đã kẹt; thử lại một lần bằng kết nối mới (xem [nenThuLaiKetNoi])
+      // thay vì chờ 20 giây rồi báo lỗi luôn.
+      connectTimeout: const Duration(seconds: 12),
       // Nhưng bắt tay xong thì phải kiên nhẫn: máy chủ chạy gói Render miễn phí,
       // tự ngủ khi vắng người dùng và mất 30 đến 60 giây mới dậy. Để 30 giây như
       // trước thì lần gọi đầu trong ngày gần như luôn quá hạn, rồi bị hiểu nhầm
@@ -187,7 +189,40 @@ class ApiClient {
       ),
     );
 
+    // ── THỬ LẠI KHI KHÔNG MỞ ĐƯỢC KẾT NỐI ───────────────────────────────────
+    // 18/11/2026 một số máy (đang dùng 5G) báo "connection timeout" lúc chấm công,
+    // trong khi cùng phút đó người khác vẫn chấm được. Kết nối kẹt ở đường truyền
+    // thì mở một kết nối mới thường đi được. Chưa kết nối được nghĩa là chưa gửi
+    // gì đi, nên gửi lại an toàn, không sinh lượt chấm công trùng.
+    dioInstance.interceptors.add(
+      InterceptorsWrapper(
+        onError: (DioException e, handler) async {
+          if (!nenThuLaiKetNoi(e)) return handler.next(e);
+          final o = e.requestOptions;
+          o.extra[_khoaThuLai] = ((o.extra[_khoaThuLai] as int?) ?? 0) + 1;
+          // FormData (ảnh) chỉ đọc được một lần — gửi lại phải dùng bản sao
+          if (o.data is FormData) o.data = (o.data as FormData).clone();
+          await Future<void>.delayed(const Duration(milliseconds: 1500));
+          try {
+            return handler.resolve(await dioInstance.fetch(o));
+          } on DioException catch (loi) {
+            return handler.next(loi);
+          }
+        },
+      ),
+    );
+
     return dioInstance;
+  }
+
+  static const String _khoaThuLai = 'thuLaiKetNoi';
+
+  /// Có nên tự gửi lại yêu cầu này không: chỉ khi CHƯA mở được kết nối (chưa
+  /// gửi gì đi) và chưa thử lại lần nào.
+  static bool nenThuLaiKetNoi(DioException e) {
+    final chuaKetNoi = e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError;
+    final daThu = (e.requestOptions.extra[_khoaThuLai] as int?) ?? 0;
+    return chuaKetNoi && e.response == null && daThu < 1;
   }
 
   /// Log helper – chỉ in trong debug build, tắt hoàn toàn trong release
