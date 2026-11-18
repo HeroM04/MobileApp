@@ -114,7 +114,7 @@ class _ThucChienViewState extends State<ThucChienView> {
       }
     } catch (e) {
       if (await xuLyLoiQuyenAnh(e)) return;
-      snack("Lỗi", "Không thể chụp ảnh: $e");
+      baoLoi(e, viec: 'chụp ảnh');
     }
   }
 

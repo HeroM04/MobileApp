@@ -83,7 +83,8 @@ class _TrainingArchiveDetailViewState extends State<TrainingArchiveDetailView> {
         _showError('Không thể mở video. Vui lòng kiểm tra đường link.');
       }
     } catch (e) {
-      _showError('Lỗi khi mở video: $e');
+      // Lỗi từ url_launcher là mã kỹ thuật (PlatformException...) — không in ra
+      _showError('Không mở được video này. Kiểm tra lại đường link, hoặc mở link bằng trình duyệt.');
     } finally {
       if (mounted) setState(() => _isLaunching = false);
     }

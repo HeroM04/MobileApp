@@ -35,7 +35,7 @@ class _DaoTao1On1ViewState extends State<DaoTao1On1View> {
         imageQuality: 90,
       );
     } catch (e) {
-      if (!await xuLyLoiQuyenAnh(e)) snack('Lỗi', 'Không mở được camera hoặc thư viện ảnh.');
+      if (!await xuLyLoiQuyenAnh(e)) baoLoi(e, viec: 'lấy ảnh');
       return;
     }
     if (pickedFile == null) return;
@@ -156,7 +156,7 @@ class _DaoTao1On1ViewState extends State<DaoTao1On1View> {
         snack('Thất bại', 'Có lỗi xảy ra', backgroundColor: Colors.red, colorText: Colors.white);
       }
     } catch (e) {
-      snack('Lỗi', 'Không thể nộp báo cáo: $e', backgroundColor: Colors.red, colorText: Colors.white);
+      baoLoi(e, viec: 'nộp báo cáo');
     } finally {
       setState(() {
         _isSubmitting = false;

@@ -537,7 +537,7 @@ class _TrainingDetailViewState extends State<TrainingDetailView> {
         );
       }
     } catch (e) {
-      snack("Lỗi", "Có lỗi xảy ra: $e");
+      baoLoi(e, viec: 'kết thúc buổi học');
     } finally {
       if (mounted) setState(() => _isEnding = false);
     }

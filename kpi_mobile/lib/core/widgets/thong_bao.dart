@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../network/api_error.dart';
 
 /// Hiện một thông báo trượt từ trên xuống.
 ///
@@ -45,4 +46,20 @@ void snack(
     // tự truyền dài hơn.
     duration: duration ?? const Duration(seconds: 3),
   );
+}
+
+/// Báo một lỗi bất kỳ bằng lời người dùng hiểu được — xem [describeApiFailure].
+///
+/// Thay cho kiểu `snack("Lỗi", "Không thể chụp ảnh: $e")` in nguyên mã lỗi
+/// (`PlatformException(camera_access_denied, ...)`) ra màn hình. Lỗi nhân viên
+/// tự xử lý được (quyền, GPS, nhập sai) màu cam; lỗi mạng / hệ thống màu đỏ.
+/// [viec] là động từ của thao tác đang làm: "chấm công", "chụp ảnh"...
+void baoLoi(Object e, {String viec = 'gửi'}) {
+  final loi = describeApiFailure(e, action: viec);
+  // Lời từ chối của máy chủ ("Bạn đã chấm công hôm nay") đi với tiêu đề
+  // "Không chấm công được" đọc tự nhiên hơn "Thông tin chưa hợp lệ".
+  snack(loi.kind == ApiFailureKind.user ? 'Không $viec được' : loi.title, loi.message,
+      backgroundColor: loi.isUserFixable ? Colors.orange.shade800 : Colors.red.shade700,
+      colorText: Colors.white,
+      duration: const Duration(seconds: 5));
 }

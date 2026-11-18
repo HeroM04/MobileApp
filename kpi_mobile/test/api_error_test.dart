@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kpi_mobile/core/network/api_error.dart';
 
@@ -73,5 +76,77 @@ void main() {
     final f = describeApiFailure(Exception('upload trả về rỗng'));
     expect(f.kind, ApiFailureKind.server);
     expect(f.message, contains('upload trả về rỗng'));
+  });
+
+  // ── Lỗi trên chính điện thoại: không được in mã kỹ thuật ra màn hình ──────
+  // Nhân viên từng thấy "PlatformException(camera_access_denied, ...)",
+  // "DioException [connection timeout]..." mà không biết phải làm gì.
+
+  /// Không câu nào lộ tên lớp lỗi hay chuỗi tiếng Anh của thư viện.
+  void khongLoMa(ApiFailure f) {
+    for (final chu in [f.title, f.message]) {
+      expect(chu, isNot(contains('Exception')));
+      expect(chu, isNot(contains('access_denied')));
+      expect(chu, isNot(contains('The user')));
+    }
+  }
+
+  test('bị chặn quyền camera / ảnh → chỉ chỗ bật trong Cài đặt', () {
+    final cam = describeApiFailure(PlatformException(code: 'camera_access_denied', message: 'The user did not allow camera access.'), action: 'chấm công');
+    expect(cam.kind, ApiFailureKind.device);
+    expect(cam.isUserFixable, isTrue);
+    expect(cam.worthRetrying, isFalse);
+    expect(cam.message, contains('Camera'));
+    khongLoMa(cam);
+    final anh = describeApiFailure(PlatformException(code: 'photo_access_denied', message: 'The user did not allow photo access.'));
+    expect(anh.title, 'Chưa cho phép truy cập ảnh');
+    khongLoMa(anh);
+  });
+
+  test('bấm camera hai lần / camera đang bận → nói rõ, không in mã', () {
+    final f = describeApiFailure(PlatformException(code: 'already_active', message: 'Image picker is already active'));
+    expect(f.title, 'Camera đang mở');
+    khongLoMa(f);
+    khongLoMa(describeApiFailure(PlatformException(code: 'no_available_camera', message: 'No cameras available')));
+  });
+
+  test('lỗi điện thoại lạ → lời dễ hiểu, chỉ kèm mã ngắn ở cuối để tra', () {
+    final f = describeApiFailure(PlatformException(code: 'xyz', message: 'Something native broke'), action: 'chụp ảnh');
+    expect(f.kind, ApiFailureKind.device);
+    expect(f.message, startsWith('Điện thoại báo lỗi khi chụp ảnh'));
+    expect(f.message, isNot(contains('Something native broke')));
+  });
+
+  test('GPS: tắt định vị, chưa cấp quyền, chưa bắt được sóng', () {
+    expect(describeApiFailure(const LocationServiceDisabledException()).title, 'Chưa bật Định vị');
+    final quyen = describeApiFailure(const PermissionDeniedException('denied'));
+    expect(quyen.message, contains('Vị trí'));
+    khongLoMa(quyen);
+    expect(describeApiFailure(const PositionUpdateException('x')).kind, ApiFailureKind.device);
+  });
+
+  test('chờ quá lâu (TimeoutException) → không in "TimeoutException after 0:00:30"', () {
+    final f = describeApiFailure(TimeoutException('x', const Duration(seconds: 30)), action: 'chấm công');
+    expect(f.title, 'Chờ quá lâu');
+    expect(f.message, contains('chấm công lần nữa'));
+    khongLoMa(f);
+  });
+
+  test('lời tiếng Việt app tự ném ra → giữ nguyên', () {
+    expect(describeApiFailure('Không thể upload ảnh lên máy chủ').message, 'Không thể upload ảnh lên máy chủ');
+  });
+
+  test('lỗi lạ hẳn → không in toàn bộ chuỗi lỗi', () {
+    final f = describeApiFailure(StateError('Bad state: internal detail'));
+    expect(f.message, isNot(contains('internal detail')));
+    expect(f.message, contains('bộ phận kỹ thuật'));
+  });
+
+  test('mạng đứt giữa chừng / wifi chặn → không in câu tiếng Anh của Dio', () {
+    final dut = describeApiFailure(DioException(requestOptions: RequestOptions(path: '/x'), type: DioExceptionType.unknown,
+        message: 'HttpException: Connection closed before full header was received'));
+    expect(dut.kind, ApiFailureKind.network);
+    expect(dut.message, isNot(contains('HttpException')));
+    expect(describeApiFailure(loiKhongPhanHoi(DioExceptionType.badCertificate)).message, contains('4G'));
   });
 }

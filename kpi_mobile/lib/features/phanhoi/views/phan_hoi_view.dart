@@ -72,7 +72,7 @@ class _PhanHoiViewState extends State<PhanHoiView> {
       }
     } catch (e) {
       if (await xuLyLoiQuyenAnh(e)) return;
-      snack("Không mở được thư viện ảnh", "Kiểm tra quyền truy cập ảnh của ứng dụng trong Cài đặt.");
+      baoLoi(e, viec: 'chọn ảnh');
     }
   }
 
@@ -84,7 +84,7 @@ class _PhanHoiViewState extends State<PhanHoiView> {
       if (x != null) setState(() => _anh.add(File(x.path)));
     } catch (e) {
       if (await xuLyLoiQuyenAnh(e)) return;
-      snack("Không mở được camera", "Kiểm tra quyền camera của ứng dụng trong Cài đặt.");
+      baoLoi(e, viec: 'chụp ảnh');
     }
   }
 

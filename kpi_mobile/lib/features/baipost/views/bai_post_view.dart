@@ -72,7 +72,7 @@ class _BaiPostViewState extends State<BaiPostView> {
       }
     } catch (e) {
       if (await xuLyLoiQuyenAnh(e)) return;
-      snack("Lỗi", "Không thể chọn hình ảnh: $e");
+      baoLoi(e, viec: 'chọn ảnh');
     }
   }
 

@@ -14,7 +14,6 @@ import 'package:kpi_mobile/data/services/lich_su_thang.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../home/controllers/kpi_controller.dart';
 import '../../../core/network/api_client.dart';
-import '../../../core/network/api_error.dart';
 import '../../../core/widgets/thong_bao.dart';
 import '../../../core/utils/quyen_anh.dart';
 import '../../../core/utils/thu_nho_anh.dart';
@@ -138,7 +137,8 @@ class CheckinController extends GetxController {
       }
     } catch (e) {
       if (await xuLyLoiQuyenAnh(e)) return;
-      snack("Lỗi", "Không thể lấy hình ảnh: $e");
+      // Khối này gồm cả chụp ảnh lẫn lấy GPS — lỗi nào cũng dịch ra lời dễ hiểu
+      baoLoi(e, viec: 'chấm công');
     } finally {
       isLoading.value = false;
     }
@@ -448,7 +448,7 @@ class CheckinController extends GetxController {
         await performCheckin(note);
       }
     } catch (e) {
-      snack("Lỗi", "Lỗi GPS: $e", backgroundColor: Colors.redAccent, colorText: Colors.white);
+      baoLoi(e, viec: 'chấm công');
       isLoading.value = false;
     }
   }
@@ -499,11 +499,7 @@ class CheckinController extends GetxController {
       // Trước đây in thẳng lỗi kỹ thuật ("DioException [connection timeout]...")
       // — nhân sự đọc không hiểu, tưởng app hỏng. Dịch sang lời nói rõ do mạng
       // của máy hay do máy chủ; lời máy chủ (vd. ngoài giờ, đã chấm rồi) giữ nguyên.
-      final loi = describeApiFailure(e, action: 'chấm công');
-      // Lời từ chối của máy chủ (4xx) giữ tiêu đề "Lỗi" như cũ — "Thông tin chưa
-      // hợp lệ" đặt trên "Bạn đã chấm công hôm nay" thì đọc lạ.
-      snack(loi.kind == ApiFailureKind.user ? 'Lỗi' : loi.title, loi.message,
-          backgroundColor: Colors.redAccent, colorText: Colors.white);
+      baoLoi(e, viec: 'chấm công');
     } finally {
       isLoading.value = false;
     }
