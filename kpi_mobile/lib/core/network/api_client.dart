@@ -171,9 +171,16 @@ class ApiClient {
                   sendTimeout: e.requestOptions.sendTimeout,
                 );
 
+                // Ảnh (FormData) chỉ gửi được MỘT lần — gửi lại đúng gói cũ thì
+                // Dio báo "FormData has already been finalized" và lượt chấm công
+                // báo lỗi. Gặp khi mở app sau hơn 1 giờ (token hết hạn) và việc
+                // đầu tiên là chụp ảnh chấm công: làm mới token xong, gửi lại hỏng,
+                // người dùng phải đăng xuất đăng nhập lại mới chấm được (20/11/2026).
+                // clone() giữ nguyên boundary nên Content-Type cũ vẫn đúng.
+                final duLieu = e.requestOptions.data;
                 final retryResponse = await Dio().request(
                   '${e.requestOptions.baseUrl}${e.requestOptions.path}',
-                  data: e.requestOptions.data,
+                  data: duLieu is FormData ? duLieu.clone() : duLieu,
                   queryParameters: e.requestOptions.queryParameters,
                   options: cloneOptions,
                 );
