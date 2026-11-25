@@ -169,8 +169,9 @@ class CheckinController extends GetxController {
       final decoded = img.decodeImage(await file.readAsBytes());
       if (decoded == null) return file;
       final ongKinh = decoded.exif.exifIfd['LensModel']?.toString();
+      final huong = decoded.exif.imageIfd.orientation; // đọc TRƯỚC khi bake (bake xóa thẻ)
       var upright = img.bakeOrientation(decoded);
-      if (nenLatAnhSelfie(laIOS: Platform.isIOS, ongKinh: ongKinh)) {
+      if (nenLatAnhSelfie(laIOS: Platform.isIOS, ongKinh: ongKinh, huongExif: huong)) {
         upright = img.flipHorizontal(upright);
       }
       return _writeJpg(upright, file, 'upright');

@@ -14,6 +14,15 @@ void main() {
       expect(nenLatAnhSelfie(laIOS: true, ongKinh: null), isTrue);
       expect(nenLatAnhSelfie(laIOS: true, ongKinh: ''), isTrue);
     });
+    test('iPhone camera trước, thẻ xoay thường (6) → lật', () {
+      expect(nenLatAnhSelfie(laIOS: true, ongKinh: 'iPhone 13 front camera 2.71mm f/2.2', huongExif: 6), isTrue);
+    });
+    test('iPhone đã lưu ảnh kiểu gương (thẻ 2/4/5/7) → không lật thêm, kẻo ngược lại', () {
+      for (final h in [2, 4, 5, 7]) {
+        expect(nenLatAnhSelfie(laIOS: true, ongKinh: 'iPhone 13 front camera 2.71mm f/2.2', huongExif: h), isFalse,
+            reason: 'thẻ $h');
+      }
+    });
     test('Android → không lật (máy đã lưu đúng như lúc soi)', () {
       expect(nenLatAnhSelfie(laIOS: false, ongKinh: 'front'), isFalse);
       expect(nenLatAnhSelfie(laIOS: false, ongKinh: null), isFalse);
