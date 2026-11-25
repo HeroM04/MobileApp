@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:isolate';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -8,7 +7,6 @@ import 'package:geocoding/geocoding.dart';
 import 'package:image_picker/image_picker.dart'; 
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:image/image.dart' as img;
-import 'dart:math' as math;
 import 'package:kpi_mobile/data/services/hang_cho_cham_cong.dart';
 import '../../../core/utils/dong_ho_may.dart';
 import 'package:kpi_mobile/data/services/lich_su_thang.dart';
@@ -19,7 +17,7 @@ import '../../../core/widgets/thong_bao.dart';
 import '../../../core/utils/quyen_anh.dart';
 import '../../../core/utils/thu_nho_anh.dart';
 import '../../../core/utils/dong_dau_anh.dart';
-import '../../../core/utils/lam_dep_anh.dart';
+import '../../../core/utils/lat_anh_selfie.dart';
 
 class CheckinController extends GetxController {
   var isLoading = false.obs;
@@ -103,8 +101,6 @@ class CheckinController extends GetxController {
         // Nếu phải xoay thêm mới thấy mặt thì giữ luôn ảnh đã xoay, để ảnh gửi
         // lên cho Admin duyệt cũng đúng chiều.
         if (faceResult.correctedFile != null) imageFile = faceResult.correctedFile!;
-        // Vị trí mặt + viền môi của đúng ảnh trên — dùng để làm đẹp (xem _addWatermark)
-        final matChup = faceResult.mat;
 
         // 2. Lấy GPS & Check Fake Location
         Position? position = await _getCurrentLocation();
@@ -137,7 +133,7 @@ class CheckinController extends GetxController {
         currentAddress = await _getAddressFromCoordinates(currentLat, currentLng);
 
         // 5. Vẽ Watermark (Time + Address)
-        File watermarkedFile = await _addWatermark(imageFile, currentAddress, mat: matChup);
+        File watermarkedFile = await _addWatermark(imageFile, currentAddress);
         selectedImage.value = watermarkedFile;
 
         if (xet.ngoai) {
@@ -193,34 +189,14 @@ class CheckinController extends GetxController {
     return out;
   }
 
-  /// Khuôn mặt lớn nhất trong ảnh, null nếu không có.
-  Future<Face?> _matTrong(File file, FaceDetector detector) async {
+  Future<bool> _hasFaceIn(File file, FaceDetector detector) async {
     try {
       final faces = await detector.processImage(InputImage.fromFile(file));
-      if (faces.isEmpty) return null;
-      return faces.reduce((a, b) =>
-          a.boundingBox.width * a.boundingBox.height >= b.boundingBox.width * b.boundingBox.height ? a : b);
+      return faces.isNotEmpty;
     } catch (e) {
       print("Lỗi Face Detection: $e");
-      return null;
+      return false;
     }
-  }
-
-  /// Đổi khuôn mặt ML Kit sang [KhuonMat] (khung mặt + viền môi) để làm đẹp.
-  static KhuonMat khuonMatTu(Face f) {
-    List<math.Point<double>> diem(List<FaceContourType> loai) => [
-          for (final l in loai)
-            for (final p in f.contours[l]?.points ?? const <math.Point<int>>[])
-              math.Point(p.x.toDouble(), p.y.toDouble()),
-        ];
-    return KhuonMat(
-      trai: f.boundingBox.left,
-      tren: f.boundingBox.top,
-      rong: f.boundingBox.width,
-      cao: f.boundingBox.height,
-      vienMoi: diem([FaceContourType.upperLipTop, FaceContourType.lowerLipBottom]),
-      trongMieng: diem([FaceContourType.upperLipBottom, FaceContourType.lowerLipTop]),
-    );
   }
 
   /// Phát hiện khuôn mặt bằng ML Kit.
@@ -229,33 +205,30 @@ class CheckinController extends GetxController {
   /// độ rồi thử lại. Có máy vẫn ghi sai chiều ảnh dù đã nướng EXIF, xoay thử
   /// như vậy tránh chặn oan người chấm công. Vẫn phải thật sự có khuôn mặt mới
   /// qua được, nên không nới lỏng khâu xác thực.
-  Future<({bool hasFace, File? correctedFile, KhuonMat? mat})> _detectFace(File imageFile) async {
+  Future<({bool hasFace, File? correctedFile})> _detectFace(File imageFile) async {
     final faceDetector = FaceDetector(options: FaceDetectorOptions(
       performanceMode: FaceDetectorMode.accurate,
       minFaceSize: 0.1,
-      // Viền môi cho bước làm đẹp (môi hồng); ML Kit chỉ lấy viền của mặt lớn nhất
-      enableContours: true,
+      enableContours: false,
       enableClassification: false,
     ));
     try {
-      final mat = await _matTrong(imageFile, faceDetector);
-      if (mat != null) {
-        return (hasFace: true, correctedFile: null, mat: khuonMatTu(mat));
+      if (await _hasFaceIn(imageFile, faceDetector)) {
+        return (hasFace: true, correctedFile: null);
       }
 
       final decoded = img.decodeImage(await imageFile.readAsBytes());
-      if (decoded == null) return (hasFace: false, correctedFile: null, mat: null);
+      if (decoded == null) return (hasFace: false, correctedFile: null);
 
       for (final angle in [90, 180, 270]) {
         final rotated = await _writeJpg(
           img.copyRotate(decoded, angle: angle), imageFile, 'rot$angle');
-        final matXoay = await _matTrong(rotated, faceDetector);
-        if (matXoay != null) {
+        if (await _hasFaceIn(rotated, faceDetector)) {
           print("Tìm thấy khuôn mặt sau khi xoay $angle độ");
-          return (hasFace: true, correctedFile: rotated, mat: khuonMatTu(matXoay));
+          return (hasFace: true, correctedFile: rotated);
         }
       }
-      return (hasFace: false, correctedFile: null, mat: null);
+      return (hasFace: false, correctedFile: null);
     } finally {
       faceDetector.close();
     }
@@ -302,11 +275,7 @@ class CheckinController extends GetxController {
   }
 
   /// Đóng dấu giờ + địa chỉ lên ảnh chấm công.
-  ///
-  /// Trước khi đóng dấu thì làm đẹp nhẹ vùng mặt ([lamDepAnh]): da mịn, trắng
-  /// sáng, môi hồng. Chạy trong isolate riêng để màn hình không khựng; lỗi thì
-  /// dùng ảnh chưa làm đẹp, không chặn chấm công.
-  Future<File> _addWatermark(File originalFile, String address, {KhuonMat? mat}) async {
+  Future<File> _addWatermark(File originalFile, String address) async {
     try {
       final bytes = await originalFile.readAsBytes();
       img.Image? goc = img.decodeImage(bytes);
@@ -314,17 +283,9 @@ class CheckinController extends GetxController {
       // Thu nhỏ TRƯỚC khi đóng dấu: làm sau thì trên ảnh gốc 4000 px chữ bé tí,
       // thu nhỏ xong còn mờ hơn. Nhận diện khuôn mặt đã chạy trên ảnh gốc ở
       // bước trước nên không bị ảnh hưởng.
-      var nho = thuNhoAnh(goc);
-      final matNho = mat?.theoTiLe(nho.width / goc.width);
-      try {
-        final truoc = nho;
-        nho = await Isolate.run(() => lamDepAnh(truoc, matNho));
-      } catch (e) {
-        print("Lỗi làm đẹp ảnh: $e");
-      }
       // Tách phần mở rộng đúng cách (_writeJpg) — trước đây thay chuỗi '.jpg'
       // cứng, gặp .jpeg hay .png là ghi đè luôn lên ảnh gốc.
-      final daThuNho = await _writeJpg(nho, originalFile, 'nho');
+      final daThuNho = await _writeJpg(thuNhoAnh(goc), originalFile, 'nho');
       // Vẽ chữ bằng Flutter để đủ dấu tiếng Việt (xem dongDauChamCong)
       return await dongDauChamCong(daThuNho, diaChi: address);
     } catch (e) {
