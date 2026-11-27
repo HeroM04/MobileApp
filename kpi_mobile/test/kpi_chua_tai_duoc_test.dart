@@ -100,4 +100,21 @@ void main() {
     // 1–4/10/2026 vẫn thuộc tuần bắt đầu thứ Hai 28/9 → KPI tháng 9 (4 thứ Hai)
     expect(KpiController.chiTieuThang(DateTime(2026, 10, 2)), 400);
   });
+
+  test('khoảng ngày tháng KPI ghi giống Web Admin: tháng 11/2026 là 02/11 – 06/12', () {
+    expect(KpiController.nhanThangKpi(DateTime(2026, 11, 27)), 'tháng KPI 11/2026: 02/11 – 06/12');
+    // 1–6/12 vẫn thuộc tuần bắt đầu thứ Hai 30/11 → vẫn là KPI tháng 11
+    expect(KpiController.nhanThangKpi(DateTime(2026, 12, 2)), 'tháng KPI 11/2026: 02/11 – 06/12');
+    expect(KpiController.nhanThangKpi(DateTime(2026, 12, 7)), 'tháng KPI 12/2026: 07/12 – 03/01');
+    // Sang năm mới nhưng tuần bắt đầu 28/12 → vẫn KPI tháng 12/2026
+    expect(KpiController.nhanThangKpi(DateTime(2027, 1, 1)), 'tháng KPI 12/2026: 07/12 – 03/01');
+    expect(KpiController.nhanThangKpi(DateTime(2026, 10, 2)), 'tháng KPI 09/2026: 07/09 – 04/10');
+  });
+
+  test('khoảng ngày tuần KPI: thứ Hai – Chủ nhật của tuần đang chấm', () {
+    expect(KpiController.nhanTuanKpi(DateTime(2026, 11, 27)), 'tuần 23/11 – 29/11');
+    expect(KpiController.nhanTuanKpi(DateTime(2026, 11, 29)), 'tuần 23/11 – 29/11');
+    expect(KpiController.nhanTuanKpi(DateTime(2026, 11, 30)), 'tuần 30/11 – 06/12');
+    expect(KpiController.nhanTuanKpi(DateTime(2026, 12, 31)), 'tuần 28/12 – 03/01');
+  });
 }

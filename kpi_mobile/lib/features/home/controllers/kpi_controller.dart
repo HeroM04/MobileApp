@@ -57,6 +57,35 @@ class KpiController extends GetxController {
     return soThuHai * 100.0;
   }
 
+  static DateTime _thuHaiCua(DateTime ngay) => DateTime(ngay.year, ngay.month, ngay.day - (ngay.weekday - 1));
+  static String _dd(int n) => n.toString().padLeft(2, '0');
+  static String _ngayThang(DateTime d) => '${_dd(d.day)}/${_dd(d.month)}';
+
+  /// Dòng nhỏ dưới thẻ "Điểm KPI tuần": "tuần 23/11 – 29/11" (thứ Hai – Chủ nhật).
+  static String nhanTuanKpi(DateTime homNay) {
+    final thuHai = _thuHaiCua(homNay);
+    return 'tuần ${_ngayThang(thuHai)} – ${_ngayThang(DateTime(thuHai.year, thuHai.month, thuHai.day + 6))}';
+  }
+
+  /// Dòng nhỏ dưới thẻ "Điểm KPI tháng", cùng cách ghi với Web Admin:
+  /// "tháng KPI 11/2026: 02/11 – 06/12". Tháng KPI chạy từ thứ Hai đầu tiên của
+  /// tháng tới Chủ nhật của tuần có thứ Hai cuối cùng — nên 1–6/12 vẫn tính vào
+  /// tháng 11. Trước đây app không ghi khoảng này ở đâu (27/11/2026).
+  static String nhanThangKpi(DateTime homNay) {
+    final thuHaiNay = _thuHaiCua(homNay);
+    final nam = thuHaiNay.year, thang = thuHaiNay.month;
+    var dau = DateTime(nam, thang, 1);
+    while (dau.weekday != DateTime.monday) {
+      dau = DateTime(dau.year, dau.month, dau.day + 1);
+    }
+    var cuoi = dau;
+    while (DateTime(cuoi.year, cuoi.month, cuoi.day + 7).month == thang) {
+      cuoi = DateTime(cuoi.year, cuoi.month, cuoi.day + 7);
+    }
+    final ketThuc = DateTime(cuoi.year, cuoi.month, cuoi.day + 6);
+    return 'tháng KPI ${_dd(thang)}/$nam: ${_ngayThang(dau)} – ${_ngayThang(ketThuc)}';
+  }
+
   @override
   void onInit() {
     super.onInit();

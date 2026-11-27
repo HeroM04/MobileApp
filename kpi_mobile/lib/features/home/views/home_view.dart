@@ -134,14 +134,16 @@ class HomeView extends StatelessWidget {
         Obx(() => kpiController.taiLoi.value
             ? BaoChuaTaiDuocDiem(daCoSoLieu: kpiController.daCoSoLieu.value, onThuLai: kpiController.fetchKpiData)
             : const SizedBox.shrink()),
-        _buildSingleKpiCard("Điểm KPI tuần", kpiController.kpiWeeklyPoints, kpiController.kpiWeeklyTarget),
+        _buildSingleKpiCard("Điểm KPI tuần", kpiController.kpiWeeklyPoints, kpiController.kpiWeeklyTarget,
+            phuDe: KpiController.nhanTuanKpi(DateTime.now())),
         const SizedBox(height: 16),
-        _buildSingleKpiCard("Điểm KPI tháng", kpiController.kpiPoints, kpiController.kpiTarget),
+        _buildSingleKpiCard("Điểm KPI tháng", kpiController.kpiPoints, kpiController.kpiTarget,
+            phuDe: KpiController.nhanThangKpi(DateTime.now())),
       ],
     );
   }
 
-  Widget _buildSingleKpiCard(String title, RxDouble pointsObs, RxDouble targetObs) {
+  Widget _buildSingleKpiCard(String title, RxDouble pointsObs, RxDouble targetObs, {String? phuDe}) {
     return Obx(() {
       final kpi = pointsObs.value;
       final target = targetObs.value;
@@ -213,6 +215,12 @@ class HomeView extends StatelessWidget {
                       color: Color(0xFF64748B),
                     ),
                   ),
+                  // Khoảng ngày đang chấm — nhân sự hỏi "tháng KPI tính từ hôm nào"
+                  if (phuDe != null)
+                    Text(
+                      phuDe,
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                    ),
                   const SizedBox(height: 4),
                   // Số điểm to, "/ chỉ tiêu điểm" nhỏ — cùng một dòng, không gãy giữa số và chữ "Điểm"
                   Text.rich(
